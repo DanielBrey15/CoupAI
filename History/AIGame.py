@@ -1,11 +1,9 @@
 from Players.AIPlayer import AIPlayer
-from Players.AIPlayer2 import AIPlayer2
 from Players.AIPlayerWhoTargetsBasedOnActions import AIPlayerWhoTargetsBasedOnActions
 from Objects.Card import Card
 from Objects.Move import Move
 import copy
 from typing import Optional
-from Services.InputWrapper import wrapInput
 from Services.GameMethods import *
 from Objects.Action import *
 from Services.ActionLogger import ActionLogger
@@ -14,8 +12,8 @@ import csv
 class AIGame:
     def __init__(self):
         deck, players = GameMethods.createDeckAndPlayers()
-        self.players: list[AIPlayer] =  players #self.createPlayers()
-        self.deck: list[Card] = deck #GameMethods.createDeck(self.players)
+        self.players: list[AIPlayer] =  players
+        self.deck: list[Card] = deck
         self.actionLog: list[Action] = []
 
     def __str__(self):
@@ -24,7 +22,7 @@ class AIGame:
             gameStatus += str(player) + "\n"
         return gameStatus[:-1] + " ]"
 
-    def PlayGame(self):
+    def PlayGame(self) -> None:
         playerOrder = copy.copy(self.players)
         while (not GameMethods.checkGameOver(playerOrder)):
             print(self)
@@ -48,7 +46,7 @@ class AIGame:
                 playerOrder.pop(deadPlayer)
         return
 
-    def isBlocked(self, playerMoving, move, target = None, potentialBlockingCard = None):
+    def isBlocked(self, playerMoving, move, target = None, potentialBlockingCard = None) -> bool:
         players = self.players
         blockingPlayer: Optional[AIPlayer] = None
         cardAIBlocksWith: Optional[Card] = None
@@ -82,31 +80,14 @@ class AIGame:
                 isBlocked=False
             )
         return False
-
-    def createPlayers(self):
-        if wrapInput("Auto setup: Type Yes or No: ").capitalize() == "Yes": #4 players (p1, p2, p3, CoupGod32), ai has duke and ambassador, p1 has duke and contessa, p2 has captain and ambassador, p3 has contessa and assassin
-            return [AIPlayerWhoTargetsBasedOnActions(Card.DUKE, Card.CONTESSA, "p1"), AIPlayerWhoTargetsBasedOnActions(Card.CAPTAIN, Card.CAPTAIN, "p2"), AIPlayerWhoTargetsBasedOnActions(Card.CONTESSA, Card.ASSASSIN, "p3"), AIPlayerWhoTargetsBasedOnActions(Card.DUKE, Card.CAPTAIN, "p4")]
-        else: #Add else if for random setup
-            print("Add the different players \n")
-            numPlayers = int(input("Num Players: "))
-            #for each player, create player class and add it to an array
-            players = []
-            print("Add players in turn order (Ignoring me).")
-            for i in range(1, numPlayers+1):
-                name = "p" + i
-                card1 = Card[wrapInput("First card: ").upper()]
-                card2 = Card[wrapInput("second card: ").upper()]
-                player = AIPlayer(card1, card2, name)
-                players.append(player)
-            return players
         
-    def setPlayers(self, newPlayers):
+    def setPlayers(self, newPlayers) -> None:
         self.players = newPlayers
 
-    def setDeck(self, newDeck):
+    def setDeck(self, newDeck) -> None:
         self.deck = newDeck
 
-    def logStealDataInCSV(self, playerActing: Player, targetPlayer: Player, isBlocked: bool):
+    def logStealDataInCSV(self, playerActing: Player, targetPlayer: Player, isBlocked: bool) -> None:
         moveActions = [a for a in self.actionLog if a.actionType == ActionType.Move]
         targetMoveActions = [a for a in moveActions if a.playerActing == targetPlayer]
         blockStealActions = [a for a in moveActions if a.actionType == ActionType.Block and a.move == Move.STEAL]

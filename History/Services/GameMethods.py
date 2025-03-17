@@ -1,9 +1,9 @@
 from Objects.Move import Move
 from Objects.Card import Card
 from Players.Player import Player
-from Players.AIPlayerWhoTargetsBasedOnActions import AIPlayerWhoTargetsBasedOnActions
-from Services.InputWrapper import wrapInput
+from Players.AIPlayer import AIPlayer
 import random
+from typing import Tuple
 from Objects.Action import *
 from Services.ActionLogger import ActionLogger
 
@@ -67,7 +67,7 @@ class GameMethods:
         isBlocked: bool,
         players: list[Player],
         deck: list[Card],
-        setDeck, #TODO - what is function?
+        setDeck,
         actionLog: list[Action]) -> None:
 
         if move == Move.INCOME:
@@ -125,13 +125,6 @@ class GameMethods:
     def getPlayers(self) -> list[Player]:
         return self.players
     
-    # def getAllDeadCards(players) -> list[Card]:
-    #     deadCards = []
-    #     for player in self.getPlayers():
-    #         for deadCard in player.getDeadCards():
-    #             deadCards.append(deadCard)
-    #     return deadCards
-    
     def createDeck(players: list[Player]) -> list[Card]:
         deck: list[Card] = []
         for card in Card:
@@ -143,7 +136,7 @@ class GameMethods:
         print(f"Deck: {', '.join(str(card) for card in deck)}")
         return deck
     
-    def createDeckAndPlayers():
+    def createDeckAndPlayers() -> Tuple[list[Card], list[Player]]:
         players: list[Player] = []
         deck: list[Card] = []
         for card in Card:
@@ -151,9 +144,8 @@ class GameMethods:
         random.shuffle(deck)
         for p in range(4):
             pCards, deck = deck[:2], deck[2:]
-            players.append(AIPlayerWhoTargetsBasedOnActions(pCards[0], pCards[1], f"p{p}"))
+            players.append(AIPlayer(pCards[0], pCards[1], p, f"p{p}"))
         return deck, players
-
 
     def getDeck(self) -> list[Card]:
         return self.deck

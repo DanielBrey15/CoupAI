@@ -2,7 +2,7 @@ from Objects.Card import Card
 from Services.InputWrapper import wrapInput
 
 class Player:
-    def __init__(self, name: str, card1: Card, card2: Card):
+    def __init__(self, id: int, name: str, card1: Card, card2: Card):
         self.name: str = name
         self.numCoins: int = 2
         self.numCards: int = 2
@@ -36,9 +36,9 @@ class Player:
     def getDeadCards(self) -> list[Card]:
         return self.deadCards 
 
-    # def acquireTarget(self, game):
-    #     targetName = str(wrapInput("Targetting: "))
-    #     return game.getPlayerByName(targetName)
+    def acquireTarget(self, game) -> str:
+        targetName = str(wrapInput("Targetting: "))
+        return game.getPlayerByName(targetName)
     
     def resolveExchange(self, exchangeCards: list[Card], game) -> list[Card]:
         cardsInHand = self.getCards()
@@ -82,11 +82,12 @@ class Player:
             print("invalid choice")
             self.chooseCardToDie()
         
-    def switchCard(self, cardSwitchedOut: Card, cardGained: Card):
+    def switchCard(self, cardSwitchedOut: Card, cardGained: Card) -> None:
         self.cards.remove(cardSwitchedOut)
         self.cards.append(cardGained)
+        return
 
-    def callsActionOut(self):
+    def callsActionOut(self) -> bool:
         isCalledOutString = wrapInput(f"\n Does {self.getName()} call this action out? \n Type either Yes or No: ").capitalize()
         if isCalledOutString == "Yes":
             return True

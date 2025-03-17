@@ -11,3 +11,4 @@ class Move(Enum):
 
     def __str__(self):
         return self.name.capitalize()
+    

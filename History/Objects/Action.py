@@ -42,6 +42,4 @@ class SwitchCardAction(BaseAction):
 
 Action = Union[MoveAction, BlockAction, CallOutAction, LoseCardAction, SwitchCardAction]
 
-#TODO Add anti actions
-
 

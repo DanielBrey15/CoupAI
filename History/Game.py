@@ -227,13 +227,7 @@ class Game:
 
     def getDeck(self) -> list[Card]: #MOVED
         return self.deck
-    
-
-def printIntro():
-    print("Yo I'm CoupGod32 and I'm here to catch dubs. \n")
-    return
 
 with open("Game.py") as my_file:
-    printIntro()
     game = Game()
     game.PlayGame()
