@@ -13,7 +13,6 @@ Next steps:
 * Include calling out probability
 * Shuffle player order
 
-
 Future plans:
 * Train model to determine when the agent should call out an opponent's action
 * Give negative rewards for completing actions that are risky (such as those you cannot do based on your cards)
