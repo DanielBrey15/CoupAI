@@ -1,39 +1,37 @@
-from Objects.Move import Move
+from Objects.Move import Move, MoveWithTarget
 from Objects.Card import Card
 from Objects.Action import Action
 from Players.Player import Player
+import random
 from typing import Optional, List
 
-class AIPlayer2(Player):
-    def __init__(self, card1: Card, card2: Card, name: str = "cg32"):
-        super().__init__(name, card1, card2)
+class AIPlayerML(Player):
+    def __init__(self, card1: Card, card2: Card, id: int = 1, name: str = "cg32"):
+        super().__init__(id = id, name = name, card1 = card1, card2 =card2)
         self.isAI: bool = True
 
-    def makeMove(self, players: list[Player], actionLog: list[Action]) -> Move:
-        #Greedy: Gain coins until enough to coup
+    def makeMove(self, players: list[Player], actionLog: list[Action]) -> MoveWithTarget:
+        #Greedy: Gain coins until enough to coup/assassinate
         if self.numCoins >= 10:
-            return Move.COUP
+            numOpps = len([p for p in players if p.id != self.id])
+            if numOpps == 1:
+                return MoveWithTarget.COUPPLAYER1
+            elif numOpps == 2:
+                return random.choice([MoveWithTarget.COUPPLAYER1, MoveWithTarget.COUPPLAYER2])
+            return random.choice([MoveWithTarget.COUPPLAYER1, MoveWithTarget.COUPPLAYER2, MoveWithTarget.COUPPLAYER3])
         elif self.cards.__contains__(Card.ASSASSIN) and self.numCoins >= 3:
-            return Move.ASSASSINATE
+            numOpps = len([p for p in players if p.id != self.id])
+            if numOpps == 1:
+                return MoveWithTarget.ASSASSINATEPLAYER1
+            elif numOpps == 2:
+                return random.choice([MoveWithTarget.ASSASSINATEPLAYER1, MoveWithTarget.ASSASSINATEPLAYER2])
+            return random.choice([MoveWithTarget.ASSASSINATEPLAYER1, MoveWithTarget.ASSASSINATEPLAYER2, MoveWithTarget.ASSASSINATEPLAYER3])
         elif self.cards.__contains__(Card.AMBASSADOR):
-            return Move.EXCHANGE
+            return MoveWithTarget.EXCHANGE
         elif self.cards.__contains__(Card.DUKE):
-            return Move.TAX
+            return MoveWithTarget.TAX
         else:
-            return Move.INCOME
-
-    def acquireTarget(self, players: List[Player], move: Move, actionlog: List[Action]) -> Player:
-        return self.findPlayerLeftWithMostCoins(players)
-
-    def findPlayerLeftWithMostCoins(self, players: List[Player]) -> Player:
-        playersTargettable = filter(lambda p: len(p.cards) > 0 and p.getName() != self.getName(), players)
-        target = None
-        targetCoins = -1
-        for player in playersTargettable:
-            if player.getNumCoins() > targetCoins:
-                target = player
-                targetCoins = player.getNumCoins()
-        return target
+            return MoveWithTarget.INCOME
 
     def AIBlock(self, playerMoving, move, target) -> Optional[Card]:
         # If CG32 will block if they can truthfully

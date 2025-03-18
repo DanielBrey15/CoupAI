@@ -71,13 +71,15 @@ class CoupEnvironment(AECEnv):
         
 
     def step(self, action, agent, actionProb) -> None:
+        #if action == None: return
         opps = [a for a in self.agents if a.id != agent.id]
-        opps.sort(key= lambda agent: (agent.numCards, agent.numCoins))
+        opps.sort(key= lambda agent: (agent.numCards, agent.numCoins), reverse = True)
         sortedOppIds = [opp.id for opp in opps]
+        print(sortedOppIds)
         oppRankToIdDictionary = {i: sortedOppIds[i] for i in range(3)}
         moveWithTarget = MoveWithTarget(action)
         move, targetId = self.splitMoveAndTarget(moveWithTarget, oppRankToIdDictionary)
-        target = None if targetId == None else self.agents[targetId]
+        target = None if targetId == None else [agent for agent in self.agents if agent.id == targetId][0]
         # ActionLogger.logAction(
         #     action= MoveAction(
         #         playerMoving=currPlayer,
@@ -153,29 +155,32 @@ if __name__ == "__main__":
     optimizer = optim.Adam(policyNet.parameters(), lr=1e-3)
     for i in range(1000):
         env.reset()
-
         for agent in env.agent_iter():
             reward, done, info = env.rewards[agent.id], env.dones[agent.id], {}
             if done:
                 action = None
                 actionProb = None
             else:
-                actionMask: list[np.int8] = GameMethods.getActionMask(agent, env.agents)
-                opps = [a for a in env.agents if a.id != agent.id]
-                opps.sort(key= lambda a: (a.numCards, a.numCoins))
-                state = torch.tensor([agent.numCards, agent.numCoins, opps[0].numCards, opps[0].numCoins, opps[1].numCards, opps[1].numCoins, opps[2].numCards, opps[2].numCoins]).float()
-                actionList = policyNet(state)
-                print("actionList before softmax")
-                print(actionList)
-                actionList[~torch.tensor(actionMask, dtype=torch.bool)] = float('-inf')
-                actionList = F.softmax(actionList, dim=0)
-                print("actionList after softmax")
-                print(actionList)
-                action = torch.multinomial(actionList, 1).item()
-                print(agent.id)
-                print(MoveWithTarget(action))
-                print(actionList[action].item())
-                actionProb = actionList[action].item()
+                if agent.id == 0:
+                    actionMask: list[np.int8] = GameMethods.getActionMask(agent, env.agents)
+                    print(actionMask)
+                    opps = [a for a in env.agents if a.id != agent.id]
+                    opps.sort(key= lambda a: (a.numCards, a.numCoins), reverse = True)
+                    state = torch.tensor([agent.numCards, agent.numCoins, opps[0].numCards, opps[0].numCoins, opps[1].numCards, opps[1].numCoins, opps[2].numCards, opps[2].numCoins]).float()
+                    actionList = policyNet(state)
+                    print("actionList before softmax")
+                    print(actionList)
+                    actionList[~torch.tensor(actionMask, dtype=torch.bool)] = float('-inf')
+                    actionList = F.softmax(actionList, dim=0)
+                    print("actionList after softmax")
+                    print(actionList)
+                    action = torch.multinomial(actionList, 1).item()
+                    print(f"p{agent.id} does {action}")
+                    actionProb = actionList[action].item()
+                else:
+                    action = agent.makeMove(env.agents, env.actionLog)
+                    actionProb = 1 # Shouldn't affect
+                    print(f"p{agent.id} does {action}")
 
             env.step(action, agent, actionProb)
             env.render()

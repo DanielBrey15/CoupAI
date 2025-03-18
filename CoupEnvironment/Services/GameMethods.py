@@ -2,7 +2,7 @@ from Objects.Move import Move
 from Objects.Move import MoveWithTarget
 from Objects.Card import Card
 from Players.Player import Player
-from Players.AIPlayer import AIPlayer
+from Players.AIPlayer3 import AIPlayer3
 from Services.InputWrapper import wrapInput
 import random
 from Objects.Action import *
@@ -173,13 +173,6 @@ class GameMethods:
     def getPlayers(self) -> list[Player]:
         return self.players
     
-    # def getAllDeadCards(players) -> list[Card]:
-    #     deadCards = []
-    #     for player in self.getPlayers():
-    #         for deadCard in player.getDeadCards():
-    #             deadCards.append(deadCard)
-    #     return deadCards
-    
     def createDeck(players: list[Player]) -> list[Card]:
         deck: list[Card] = []
         for card in Card:
@@ -197,9 +190,11 @@ class GameMethods:
         for card in Card:
             deck.extend([card, card, card])
         random.shuffle(deck)
-        for p in range(4):
+        pCards, deck = deck[:2], deck[2:]
+        players.append(AIPlayer3(card1 = pCards[0], card2 = pCards[1], id = 0, name = "p0")) # Separated this for when we use a different class for ML player 0 
+        for p in range(1,4):
             pCards, deck = deck[:2], deck[2:]
-            players.append(AIPlayer(card1 = pCards[0], card2 = pCards[1], id = p, name = f"p{p}"))
+            players.append(AIPlayer3(card1 = pCards[0], card2 = pCards[1], id = p, name = f"p{p}"))
         return deck, players
 
 
@@ -209,7 +204,7 @@ class GameMethods:
     def getActionMask(currPlayer: Player, players: list[Player]) -> list[np.int8]:
         actionMask = np.ones(13, dtype=np.int8)
         opps = [p for p in players if p.id != currPlayer.id]
-        opps.sort(key= lambda agent: (agent.numCards, agent.numCoins))
+        opps.sort(key= lambda agent: (agent.numCards, agent.numCoins), reverse = True)
         sortedOppIds = [opp.id for opp in opps]
         oppRankToIdDictionary = {i: sortedOppIds[i] for i in range(3)}
         if opps[0].numCards == 0:
@@ -246,69 +241,3 @@ class GameMethods:
             actionMask[MoveWithTarget.EXCHANGE] = 0
         
         return actionMask
-
-
-    # def getActionMasks(players: list[Player]) -> dict[int, dict[str, any]]:
-    #     observations = {
-    #         i: {"actionMask": np.ones(13, dtype=np.int8)} for i in range(4) #hard coded 4 player
-    #     }
-    #     observations[0]["actionMask"][MoveWithTarget.COUPPLAYER1] = 0
-    #     observations[0]["actionMask"][MoveWithTarget.STEALPLAYER1] = 0
-    #     observations[0]["actionMask"][MoveWithTarget.ASSASSINATEPLAYER1] = 0
-    #     observations[1]["actionMask"][MoveWithTarget.COUPPLAYER2] = 0
-    #     observations[1]["actionMask"][MoveWithTarget.STEALPLAYER2] = 0
-    #     observations[1]["actionMask"][MoveWithTarget.ASSASSINATEPLAYER2] = 0
-    #     observations[2]["actionMask"][MoveWithTarget.COUPPLAYER3] = 0
-    #     observations[2]["actionMask"][MoveWithTarget.STEALPLAYER3] = 0
-    #     observations[2]["actionMask"][MoveWithTarget.ASSASSINATEPLAYER3] = 0
-    #     observations[3]["actionMask"][MoveWithTarget.COUPPLAYER4] = 0
-    #     observations[3]["actionMask"][MoveWithTarget.STEALPLAYER4] = 0
-    #     observations[3]["actionMask"][MoveWithTarget.ASSASSINATEPLAYER4] = 0
-
-    #     if players[0].numCards == 0:
-    #         for i in range(4): #Hard coding 4 player
-    #             observations[i]["actionMask"][MoveWithTarget.COUPPLAYER1] = 0
-    #             observations[i]["actionMask"][MoveWithTarget.STEALPLAYER1] = 0
-    #             observations[i]["actionMask"][MoveWithTarget.ASSASSINATEPLAYER1] = 0
-    #     if players[1].numCards == 0:
-    #         for i in range(4):
-    #             observations[i]["actionMask"][MoveWithTarget.COUPPLAYER2] = 0
-    #             observations[i]["actionMask"][MoveWithTarget.STEALPLAYER2] = 0
-    #             observations[i]["actionMask"][MoveWithTarget.ASSASSINATEPLAYER2] = 0
-    #     if players[2].numCards == 0:
-    #         for i in range(4):
-    #             observations[i]["actionMask"][MoveWithTarget.COUPPLAYER3] = 0
-    #             observations[i]["actionMask"][MoveWithTarget.STEALPLAYER3] = 0
-    #             observations[i]["actionMask"][MoveWithTarget.ASSASSINATEPLAYER3] = 0
-    #     if players[3].numCards == 0:
-    #         for i in range(4):
-    #             observations[i]["actionMask"][MoveWithTarget.COUPPLAYER4] = 0
-    #             observations[i]["actionMask"][MoveWithTarget.STEALPLAYER4] = 0
-    #             observations[i]["actionMask"][MoveWithTarget.ASSASSINATEPLAYER4] = 0
-
-    #     for i in range(len(players)):
-    #         if players[i].numCoins < 7:
-    #             observations[i]["actionMask"][MoveWithTarget.COUPPLAYER1] = 0
-    #             observations[i]["actionMask"][MoveWithTarget.COUPPLAYER2] = 0
-    #             observations[i]["actionMask"][MoveWithTarget.COUPPLAYER3] = 0
-    #             observations[i]["actionMask"][MoveWithTarget.COUPPLAYER4] = 0
-    #             if players[i].numCoins < 3:
-    #                 observations[i]["actionMask"][MoveWithTarget.ASSASSINATEPLAYER1] = 0
-    #                 observations[i]["actionMask"][MoveWithTarget.ASSASSINATEPLAYER2] = 0
-    #                 observations[i]["actionMask"][MoveWithTarget.ASSASSINATEPLAYER3] = 0
-    #                 observations[i]["actionMask"][MoveWithTarget.ASSASSINATEPLAYER4] = 0
-    #         elif players[i].numCoins >= 10:
-    #             observations[i]["actionMask"][MoveWithTarget.INCOME] = 0
-    #             observations[i]["actionMask"][MoveWithTarget.FOREIGNAID] = 0
-    #             observations[i]["actionMask"][MoveWithTarget.TAX] = 0
-    #             observations[i]["actionMask"][MoveWithTarget.STEALPLAYER1] = 0
-    #             observations[i]["actionMask"][MoveWithTarget.STEALPLAYER2] = 0
-    #             observations[i]["actionMask"][MoveWithTarget.STEALPLAYER3] = 0
-    #             observations[i]["actionMask"][MoveWithTarget.STEALPLAYER4] = 0
-    #             observations[i]["actionMask"][MoveWithTarget.ASSASSINATEPLAYER1] = 0
-    #             observations[i]["actionMask"][MoveWithTarget.ASSASSINATEPLAYER2] = 0
-    #             observations[i]["actionMask"][MoveWithTarget.ASSASSINATEPLAYER3] = 0
-    #             observations[i]["actionMask"][MoveWithTarget.ASSASSINATEPLAYER4] = 0
-    #             observations[i]["actionMask"][MoveWithTarget.EXCHANGE] = 0
-    #     return observations
-    
