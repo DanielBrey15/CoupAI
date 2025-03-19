@@ -14,6 +14,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from math import log
+import matplotlib.pyplot as plt
 
 class CoupEnvironment(AECEnv):
     metadata = {
@@ -71,7 +72,6 @@ class CoupEnvironment(AECEnv):
         
 
     def step(self, action, agent, actionProb) -> None:
-        #if action == None: return
         opps = [a for a in self.agents if a.id != agent.id]
         opps.sort(key= lambda agent: (agent.numCards, agent.numCoins), reverse = True)
         sortedOppIds = [opp.id for opp in opps]
@@ -149,11 +149,46 @@ def computeDiscountedRewards(numMoves, gamma=0.99):
         discountedRewards.append(gamma**r)
     return discountedRewards
 
+def mapNumCoinsToBracket(numCoins: int) -> int:
+    # Number of coins can be 0, 1, 2, 3-6, or 7+ (Split based on what actions the player can do)
+    # Note: It's impossible to have over 13 coins
+    numCoinsMapping = {
+        0: 0,
+        1: 1,
+        2: 2,
+        3: 3,
+        4: 3,
+        5: 3,
+        6: 3,
+        7: 4,
+        8: 4,
+        9: 4,
+        10: 4,
+        11: 4,
+        12: 4,
+        13: 4
+    }
+    return numCoinsMapping[numCoins]
+
+def getOneHotEncodeState(orderedPlayers: list[Player]):
+    orderedNumCards = [p.numCards for p in orderedPlayers]
+    orderedNumCoinBrackets = [mapNumCoinsToBracket(p.numCoins) for p in orderedPlayers]
+    oneHotInputsCards = torch.cat([F.one_hot(torch.tensor(i), num_classes=3) for i in orderedNumCards]) #).float()
+    oneHotInputsCoins = torch.cat([F.one_hot(torch.tensor(j), num_classes=5) for j in orderedNumCoinBrackets])
+    allOneHotInputs = torch.cat([oneHotInputsCards, oneHotInputsCoins]).float()
+    return allOneHotInputs
+
+
 if __name__ == "__main__":
     env = CoupEnvironment()
-    policyNet = PolicyNetwork(8, 13)
-    optimizer = optim.Adam(policyNet.parameters(), lr=1e-3)
-    for i in range(1000):
+    # Using one-hot encoding (3 values for each player's number of cards, 5 for each player's number of coins)
+    # Number of coins can be 0, 1, 2, 3-6, or 7+ (Split based on what actions the player can do)
+    policyNet = PolicyNetwork(32, 13)
+    optimizer = optim.Adam(policyNet.parameters(), lr=1e-2)
+    currWins: int = 0
+    winPercentageOverTime: list[float] = []
+    numGames = 10000
+    for i in range(numGames):
         env.reset()
         for agent in env.agent_iter():
             reward, done, info = env.rewards[agent.id], env.dones[agent.id], {}
@@ -163,38 +198,91 @@ if __name__ == "__main__":
             else:
                 if agent.id == 0:
                     actionMask: list[np.int8] = GameMethods.getActionMask(agent, env.agents)
-                    print(actionMask)
                     opps = [a for a in env.agents if a.id != agent.id]
                     opps.sort(key= lambda a: (a.numCards, a.numCoins), reverse = True)
-                    state = torch.tensor([agent.numCards, agent.numCoins, opps[0].numCards, opps[0].numCoins, opps[1].numCards, opps[1].numCoins, opps[2].numCards, opps[2].numCoins]).float()
-                    actionList = policyNet(state)
-                    print("actionList before softmax")
-                    print(actionList)
+                    encodedState = getOneHotEncodeState([agent, opps[0], opps[1], opps[2]])
+                    actionList = policyNet(encodedState)
                     actionList[~torch.tensor(actionMask, dtype=torch.bool)] = float('-inf')
                     actionList = F.softmax(actionList, dim=0)
-                    print("actionList after softmax")
-                    print(actionList)
+                    print(f"Action list: {actionList}")
                     action = torch.multinomial(actionList, 1).item()
-                    print(f"p{agent.id} does {action}")
                     actionProb = actionList[action].item()
                 else:
                     action = agent.makeMove(env.agents, env.actionLog)
                     actionProb = 1 # Shouldn't affect
-                    print(f"p{agent.id} does {action}")
 
             env.step(action, agent, actionProb)
             env.render()
 
-            if len([True for d in env.dones if not d]) == 1:
+            if [a.numCards for a in env.agents if a.id == 0][0] == 0: #If p0 is out, collect their ranking and end
+                p0Place = len([a for a in env.agents if a.numCards > 0]) + 1
                 break
+
+            if len([True for d in env.dones if not d]) == 1: #If only one player is left, it is p0 based on above condition
+                p0Place = 1
+                break 
         p0Moves = [a for a in env.actionLog if a.playerId == 0]
+        p0NumberOfKills = len([a for a in p0Moves if a.action in [
+            MoveWithTarget.COUPPLAYER1,
+            MoveWithTarget.COUPPLAYER2,
+            MoveWithTarget.COUPPLAYER3,
+            MoveWithTarget.ASSASSINATEPLAYER1,
+            MoveWithTarget.ASSASSINATEPLAYER2,
+            MoveWithTarget.ASSASSINATEPLAYER3]])
+        print(f"Number of p0 kills: {p0NumberOfKills}")
+        
         policyLoss = [reward * -log(action.actionProb) for reward, action in zip(computeDiscountedRewards(len(p0Moves)), p0Moves)]
-            
+        policLossKillCountConstant = 1 - p0NumberOfKills # Killing less than one card is punished, killing more than one is rewarded
+        policyLossRankMultiplierDict = {
+            1: -2,
+            2: -1,
+            3: 2,
+            4: 3
+        }
+        policyMultiplierOverall = policyLossRankMultiplierDict[p0Place] + policLossKillCountConstant
+        policyLoss = [p*policyMultiplierOverall for p in policyLoss]
+
         if env.agents[0].numCards > 0:
-            policyLoss = [-p for p in policyLoss]
+            currWins += 1
+        winPercentageOverTime.append(currWins/(i+1))
+
         optimizer.zero_grad()
         policyLoss = torch.tensor(policyLoss, dtype=torch.float32, requires_grad=True).sum()
+        print(f"policy loss =: {policyLoss}")
         policyLoss.backward()
         optimizer.step()
- 
+    
     env.close()
+
+    #Test States
+    oneHotEncodedStateCoupAvailable = [
+        0,0,1,
+        0,0,1,
+        0,0,1,
+        0,0,1,
+        0,0,0,0,1,
+        0,0,1,0,0,
+        0,1,0,0,0,
+        1,0,0,0,0]
+    print(f"Action list for start of game: {F.softmax(policyNet(torch.Tensor(oneHotEncodedStateCoupAvailable)), dim=0)}")
+    
+    oneHotEncodedStateAbleToEndGame = [
+        0,1,0,
+        0,1,0,
+        1,0,0,
+        1,0,0,
+        0,0,0,0,1,
+        0,1,0,0,0,
+        0,0,1,0,0,
+        1,0,0,0,0]
+    actionList = policyNet(torch.Tensor(oneHotEncodedStateAbleToEndGame))
+    actionList[~torch.tensor([1,1,1,0,0,1,1,0,0,1,0,0,1], dtype=torch.bool)] = float('-inf')
+    print(f"Action list for game ending move: {F.softmax(actionList, dim=0)}")
+
+    
+
+    plt.plot(range(numGames), winPercentageOverTime, marker='o', linestyle='-')
+    plt.xlabel("Games played")
+    plt.ylabel("Win percentage")
+    plt.title("Win percentage over time")
+    plt.show()

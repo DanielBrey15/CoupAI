@@ -70,7 +70,7 @@ class GameMethods:
         isBlocked: bool,
         players: list[Player],
         deck: list[Card],
-        setDeck, #TODO - what is function?
+        setDeck,
         actionLog: list[Action]) -> None:
 
         if move == Move.INCOME:
@@ -118,7 +118,7 @@ class GameMethods:
         isBlocked,
         players: list[Player],
         deck: list[Card],
-        setDeck, #TODO - what is function?
+        setDeck,
         actionLog: list[Action]) -> None:
 
         if move == Move.INCOME:
@@ -205,8 +205,6 @@ class GameMethods:
         actionMask = np.ones(13, dtype=np.int8)
         opps = [p for p in players if p.id != currPlayer.id]
         opps.sort(key= lambda agent: (agent.numCards, agent.numCoins), reverse = True)
-        sortedOppIds = [opp.id for opp in opps]
-        oppRankToIdDictionary = {i: sortedOppIds[i] for i in range(3)}
         if opps[0].numCards == 0:
             actionMask[MoveWithTarget.COUPPLAYER1] = 0
             actionMask[MoveWithTarget.STEALPLAYER1] = 0
