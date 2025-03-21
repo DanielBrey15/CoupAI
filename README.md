@@ -4,11 +4,19 @@ Developing AI agents for card game Coup
 Overview of Coup: With 2 characters with unique abilities, Players use bluffing and strategy to try to be the last player standing.
 Rules: https://www.qugs.org/rules/r131357.pdf (Rules also in CoupRules.pdf)
 
-Initially created functionality to play Coup and developed various AI players with different heuristics and strategies (History folder). Currently designing and iterating on AI players that use machine learning to make their game decisions (CoupEnvironment folder).
+Initially I created functionality to play Coup and developed various AI players with different heuristics and strategies (These players and their game setup ca be found in the History directory). Now, I am currently designing and iterating on AI players that use machine learning to make their game decisions (CoupEnvironment directory).
+
+Important files in the CoupEnvironment directory:
+* CoupEnvironment.py: The main script run - It creates the game and training environment, and teaches one of the players how to play over thousands of games.
+* Services/GameMethods.py: The module containing many helper methods for CoupEnvironment.py.
+* Players directory: Directory containing different AI agent classes. In the History directory, these each had different heuristics used to make decisions. In the current setup, these player classes will either have their own models or take in stored models as inputs to play Coup.
+
+![Chart showing Coup AI's win percentage over 5000 games (4 player game)](Images/CoupAIWinPercentageVisual.png)
+The Coup AI has demonstrated it can learn and, while skipping over some of the rules of the actual game, win more than other agents that use strong heuristics.
 
 Next steps:
 
-There are parts of the game that I have removed while beginning training of the agent (such as making decisions based on its actual cards and calling out actions). Once I am able to teach the agent certain moves it should make (such as moves that will win it the game), I will move back to these other parts of the game.
+There are parts of the game that I have removed while training the agent (such as making decisions based on its actual cards and calling out actions).
 
 * Store reinforcement model after training
 * Use different inputs to train the model (such as which cards we have and what moves have been made)

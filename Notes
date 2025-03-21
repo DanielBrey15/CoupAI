@@ -1,9 +1,0 @@
-Reinforcement learning for calling out should be very easy, 
-but I can't do it until people are lying, which means I need to determine optimal
-move first.
-
-I should refactor so they decide best action, not best move (which means it'll include target)
-
-Then I need a ML model to determine best move, a ML model to determine call outs, and a third
-one to determine blocks (also can use instant reward/punishment bc of call out)
-

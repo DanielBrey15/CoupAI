@@ -17,6 +17,7 @@ from math import log
 import matplotlib.pyplot as plt
 from Objects.GameLog import GameLog
 import csv
+from Constants import Constants
 
 class CoupEnvironment(AECEnv):
     metadata = {
@@ -30,7 +31,7 @@ class CoupEnvironment(AECEnv):
             gameStatus += str(player) + "\n"
         return gameStatus[:-1] + " ]"
 
-    def __init__(self, numPlayers = 4):
+    def __init__(self):
         super().__init__()
         deck, agents = GameMethods.createDeckAndPlayers()
         self.agents: list[AIPlayer] =  agents
@@ -54,26 +55,6 @@ class CoupEnvironment(AECEnv):
         self.dones = {agent.id: False for agent in self.agents}
         self.actionLog: list[Log] = []
 
-    def splitMoveAndTarget(self, moveWithTarget: MoveWithTarget, oppDict: dict[int, int]) -> Tuple[Move, (int | None)]:
-        targetDict = {
-            MoveWithTarget.INCOME: (Move.INCOME, None),
-            MoveWithTarget.FOREIGNAID: (Move.FOREIGNAID, None),
-            MoveWithTarget.COUPPLAYER1: (Move.COUP, 0),
-            MoveWithTarget.COUPPLAYER2: (Move.COUP, 1),
-            MoveWithTarget.COUPPLAYER3: (Move.COUP, 2),
-            MoveWithTarget.TAX: (Move.TAX, None),
-            MoveWithTarget.STEALPLAYER1: (Move.STEAL, 0),
-            MoveWithTarget.STEALPLAYER2: (Move.STEAL, 1),
-            MoveWithTarget.STEALPLAYER3: (Move.STEAL, 2),
-            MoveWithTarget.ASSASSINATEPLAYER1: (Move.ASSASSINATE, 0),
-            MoveWithTarget.ASSASSINATEPLAYER2: (Move.ASSASSINATE, 1),
-            MoveWithTarget.ASSASSINATEPLAYER3: (Move.ASSASSINATE, 2),
-            MoveWithTarget.EXCHANGE: (Move.EXCHANGE, None)
-        }
-        move, targetOppRank = targetDict[moveWithTarget]
-        return (move, None) if targetOppRank == None else (move, oppDict[targetOppRank])
-        
-
     def step(self, action, agent, actionProb) -> None:
         opps = [a for a in self.agents if a.id != agent.id]
         opps.sort(key= lambda agent: (agent.numCards, agent.numCoins), reverse = True)
@@ -81,15 +62,8 @@ class CoupEnvironment(AECEnv):
         print(sortedOppIds)
         oppRankToIdDictionary = {i: sortedOppIds[i] for i in range(3)}
         moveWithTarget = MoveWithTarget(action)
-        move, targetId = self.splitMoveAndTarget(moveWithTarget, oppRankToIdDictionary)
+        move, targetId = GameMethods.splitMoveAndTarget(moveWithTarget, oppRankToIdDictionary)
         target = None if targetId == None else [agent for agent in self.agents if agent.id == targetId][0]
-        # ActionLogger.logAction(
-        #     action= MoveAction(
-        #         playerMoving=currPlayer,
-        #         move= move,
-        #         target=None
-        #     ),
-        #     actionLog=self.actionLog)
         ActionLogger2.logAction(
             currPlayer = agent,
             sortedOpps = opps,
@@ -97,7 +71,7 @@ class CoupEnvironment(AECEnv):
             actionProb = actionProb,
             actionLog = self.actionLog 
         )
-        GameMethods.resolveMove2(GameMethods, agent, move, target, self.isBlocked, self.agents, self.deck, self.setDeck, actionLog=self.actionLog)
+        GameMethods.resolveMove(GameMethods, agent, move, target, self.isBlocked, self.agents, self.deck, self.setDeck, actionLog=self.actionLog)
 
         env.dones = [agent.numCards == 0 for agent in env.agents]
 
@@ -129,7 +103,7 @@ class CoupEnvironment(AECEnv):
     def logGameDataInCSV(self, winPercentage: float) -> None:
         with open("CSVs/GameData.csv", mode='a', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(["### Training new model"])
+            writer.writerow([f"### Training new model - Win Percentage: {winPercentage*100}%"])
             writer.writerow({
                 "GameNum": "GameNum",
                 "Rank": "Rank",
@@ -137,7 +111,6 @@ class CoupEnvironment(AECEnv):
                 "PolicyLoss": "PolicyLoss",
                 "ChanceOfCoupInGameWinningState": "ChanceOfCoupInGameWinningState",
                 "ChanceOfAssassinateInGameWinningState": "ChanceOfAssassinateInGameWinningState",
-                "WinPercentage": "WinPercentage"
             }.values())
             for game in env.gameLog:
                 writer.writerow({
@@ -147,7 +120,6 @@ class CoupEnvironment(AECEnv):
                 "PolicyLoss": game.policyLoss,
                 "ChanceOfCoupInGameWinningState": game.chanceOfCoupInGameWinningState,
                 "ChanceOfAssassinateInGameWinningState": game.chanceOfAssasssinateInGameWinningState,
-                "WinPercentage": winPercentage,
             }.values())
         return
 
@@ -175,43 +147,6 @@ class PolicyNetwork(nn.Module):
     def forward(self, x):
         return self.fc(x)
 
-
-def computeDiscountedRewards(numMoves, gamma=0.99):
-    discountedRewards = []
-    for r in reversed(range(numMoves)):
-        discountedRewards.append(gamma**r)
-    return discountedRewards
-
-def mapNumCoinsToBracket(numCoins: int) -> int:
-    # Number of coins can be 0, 1, 2, 3-6, or 7+ (Split based on what actions the player can do)
-    # Note: It's impossible to have over 13 coins
-    numCoinsMapping = {
-        0: 0,
-        1: 1,
-        2: 2,
-        3: 3,
-        4: 3,
-        5: 3,
-        6: 3,
-        7: 4,
-        8: 4,
-        9: 4,
-        10: 4,
-        11: 4,
-        12: 4,
-        13: 4
-    }
-    return numCoinsMapping[numCoins]
-
-def getOneHotEncodeState(orderedPlayers: list[Player]):
-    orderedNumCards = [p.numCards for p in orderedPlayers]
-    orderedNumCoinBrackets = [mapNumCoinsToBracket(p.numCoins) for p in orderedPlayers]
-    oneHotInputsCards = torch.cat([F.one_hot(torch.tensor(i), num_classes=3) for i in orderedNumCards]) #).float()
-    oneHotInputsCoins = torch.cat([F.one_hot(torch.tensor(j), num_classes=5) for j in orderedNumCoinBrackets])
-    allOneHotInputs = torch.cat([oneHotInputsCards, oneHotInputsCoins]).float()
-    return allOneHotInputs
-
-
 if __name__ == "__main__":
     env = CoupEnvironment()
     # Using one-hot encoding (3 values for each player's number of cards, 5 for each player's number of coins)
@@ -233,7 +168,7 @@ if __name__ == "__main__":
                     actionMask: list[np.int8] = GameMethods.getActionMask(agent, env.agents)
                     opps = [a for a in env.agents if a.id != agent.id]
                     opps.sort(key= lambda a: (a.numCards, a.numCoins), reverse = True)
-                    encodedState = getOneHotEncodeState([agent, opps[0], opps[1], opps[2]])
+                    encodedState = GameMethods.getOneHotEncodeState([agent, opps[0], opps[1], opps[2]])
                     actionList = policyNet(encodedState)
                     actionList[~torch.tensor(actionMask, dtype=torch.bool)] = float('-inf')
                     actionList = F.softmax(actionList, dim=0)
@@ -255,62 +190,36 @@ if __name__ == "__main__":
                 p0Place = 1
                 break 
         p0Moves = [a for a in env.actionLog if a.playerId == 0]
-        p0NumberOfKills = len([a for a in p0Moves if a.action in [
-            MoveWithTarget.COUPPLAYER1,
-            MoveWithTarget.COUPPLAYER2,
-            MoveWithTarget.COUPPLAYER3,
-            MoveWithTarget.ASSASSINATEPLAYER1,
-            MoveWithTarget.ASSASSINATEPLAYER2,
-            MoveWithTarget.ASSASSINATEPLAYER3]])
+        p0NumberOfKills = len([a for a in p0Moves if a.action in Constants.LISTOFKILLMOVES])
         print(f"Number of p0 kills: {p0NumberOfKills}")
         
-        rewards = torch.tensor(computeDiscountedRewards(len(p0Moves)), dtype=torch.float32, device=logActionProb.device)
-        for move in p0Moves:
-            print(f"Move {move.playerId} requires: {move.actionProb.requires_grad}")
+        rewards = torch.tensor(GameMethods.computeDiscountedRewards(len(p0Moves)), dtype=torch.float32, device=logActionProb.device)
         policyLoss = torch.stack([reward * action.actionProb for reward, action in zip(rewards, p0Moves)]).sum()
-        print(f"A: {policyLoss.requires_grad}")
         policLossKillCountConstant = 1 - p0NumberOfKills # Killing less than one card is punished, killing more than one is rewarded
-        policyLossRankMultiplierDict = {
-            1: -2,
-            2: -1,
-            3: 2,
-            4: 3
-        }
-        policyMultiplierOverall = torch.tensor(policyLossRankMultiplierDict[p0Place] + policLossKillCountConstant, dtype=torch.float32, device=policyLoss.device)
-        policyLoss = policyMultiplierOverall * policyLoss#[p*policyMultiplierOverall for p in policyLoss]
-        print(f"B: {policyLoss.requires_grad}")
+        
+        policyMultiplierOverall = torch.tensor(Constants.POLICYLOSSMULTIPLERBYRANKDICTIONARY[p0Place] + policLossKillCountConstant, dtype=torch.float32, device=policyLoss.device)
+        policyLoss = policyMultiplierOverall * policyLoss
 
         if env.agents[0].numCards > 0:
             currWins += 1
         winPercentageOverTime.append(currWins/(i+1))
 
         optimizer.zero_grad()
-        #policyLoss = torch.tensor(policyLoss, dtype=torch.float32, requires_grad=True).sum()
-        print(f"policy loss =: {policyLoss}")
 
-        #log
-        oneHotEncodedStateAbleToEndGame = [
-        0,1,0,
-        0,1,0,
-        1,0,0,
-        1,0,0,
-        0,0,0,0,1,
-        0,1,0,0,0,
-        0,0,1,0,0,
-        1,0,0,0,0]
+        actionListTestCase = policyNet(torch.Tensor(Constants.ONEHOTENCODEDSTATETOWINGAME))
+        actionListTestCase[~torch.tensor(Constants.ACTIONMASKFORSTATETOWINGAME, dtype=torch.bool)] = float('-inf')
+        actionListTestCase = F.softmax(actionListTestCase, dim=0)
+        chanceofCoupInGameWinningState, chanceofAssassinateInGameWinningState = (0,0)
         env.logGame(
             gameNum = i,
             rank = p0Place,
             numKills = p0NumberOfKills,
             policyLoss = policyLoss.item(),
-            chanceofCoupInGameWinningState = policyNet(torch.Tensor(oneHotEncodedStateAbleToEndGame))[MoveWithTarget.COUPPLAYER1].item(),
-            chanceofAssassinateInGameWinningState = policyNet(torch.Tensor(oneHotEncodedStateAbleToEndGame))[MoveWithTarget.ASSASSINATEPLAYER1].item(),
+            chanceofCoupInGameWinningState = actionListTestCase[MoveWithTarget.COUPPLAYER1].item(),
+            chanceofAssassinateInGameWinningState = actionListTestCase[MoveWithTarget.ASSASSINATEPLAYER1].item(),
         )
 
         policyLoss.backward()
-
-        for param in policyNet.parameters():
-            print(param.grad)
         optimizer.step()
 
     env.logGameDataInCSV(currWins/numGames)
@@ -321,3 +230,5 @@ if __name__ == "__main__":
     plt.ylabel("Win percentage")
     plt.title("Win percentage over time")
     plt.show()
+
+
