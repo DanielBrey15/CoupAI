@@ -1,7 +1,5 @@
-from Objects.Move import MoveWithTarget
-from Objects.Card import Card
+from Objects.MoveWithTarget import MoveWithTarget
 from Players.Player import Player
-from Objects.Action import MoveAction
 from torch import Tensor
 
 class GameState:
@@ -15,14 +13,14 @@ class GameState:
         self.opp3Cards = sortedOpps[2].numCards
         self.opp3Coins = sortedOpps[2].numCoins
 
-class Log:
+class MoveLogEntry:
     def __init__(self, currPlayerId: int, gameState: GameState, action: MoveWithTarget, actionProb: Tensor):
         self.playerId = currPlayerId
         self.gameState = gameState
         self.action = action
         self.actionProb = actionProb
 
-class ActionLogger2:
-    def logAction(currPlayer: Player, sortedOpps: list[Player], action: MoveWithTarget, actionProb: Tensor, actionLog: list[Log]) -> None:
+class MoveLogger:
+    def logMove(currPlayer: Player, sortedOpps: list[Player], action: MoveWithTarget, actionProb: Tensor, moveLog: list[MoveLogEntry]) -> None:
         gameState = GameState(currPlayer, sortedOpps)
-        actionLog.append(Log(currPlayer.id, gameState, action, actionProb))
+        moveLog.append(MoveLogEntry(currPlayer.id, gameState, action, actionProb))

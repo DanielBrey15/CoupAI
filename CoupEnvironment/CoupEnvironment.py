@@ -3,11 +3,11 @@ from gym import spaces
 from Players.AIPlayer import AIPlayer
 from Objects.Card import Card
 from Objects.Move import Move
-from Objects.Move import MoveWithTarget
+from Objects.MoveWithTarget import MoveWithTarget
 from typing import Optional, Tuple
 from Services.GameMethods import *
 from Objects.Action import *
-from Services.ActionLogger2 import ActionLogger2, Log
+from CoupEnvironment.Services.MoveLogger import MoveLogger, MoveLogEntry
 from pettingzoo import AECEnv
 import torch
 import torch.nn as nn
@@ -40,20 +40,21 @@ class CoupEnvironment(AECEnv):
         self.agent_selection = self.agents[0]
         self.rewards = {agent.id: 0 for agent in self.agents}
         self.dones = {agent.id: False for agent in self.agents}
-        self.actionLog: list[Log] = []
+        self.moveLog: list[MoveLogEntry] = []
         self.gameLog: list[GameLog] = []
 
         self.action_spaces = {agent.id: spaces.Discrete(13) for agent in self.agents} # [Income, Foreign Aid, Coup Opp A, Coup Opp B, Coup Opp C, Tax, Steal Opp A, Steal Opp B, Steal Opp C, Assassinate Opp A, Assassinate Opp B, Assassinate Opp C, Exchange]
         self.observation_spaces = {agent.id: spaces.Discrete(1) for agent in self.agents}
 
-    def reset(self, seed=None, options=None) -> None:
+    def reset(self, seed=32, options=None) -> None:
+        random.seed(seed)
         deck, agents = GameMethods.createDeckAndPlayers()
         self.agents: list[AIPlayer] =  agents
         self.deck: list[Card] = deck
         self.agent_selection = self.agents[0]
         self.rewards = {agent.id: 0 for agent in self.agents}
         self.dones = {agent.id: False for agent in self.agents}
-        self.actionLog: list[Log] = []
+        self.moveLog: list[MoveLogEntry] = []
 
     def step(self, action, agent, actionProb) -> None:
         opps = [a for a in self.agents if a.id != agent.id]
@@ -64,14 +65,14 @@ class CoupEnvironment(AECEnv):
         moveWithTarget = MoveWithTarget(action)
         move, targetId = GameMethods.splitMoveAndTarget(moveWithTarget, oppRankToIdDictionary)
         target = None if targetId == None else [agent for agent in self.agents if agent.id == targetId][0]
-        ActionLogger2.logAction(
+        MoveLogger.logMove(
             currPlayer = agent,
             sortedOpps = opps,
             action = moveWithTarget,
             actionProb = actionProb,
-            actionLog = self.actionLog 
+            moveLog = self.moveLog 
         )
-        GameMethods.resolveMove(GameMethods, agent, move, target, self.isBlocked, self.agents, self.deck, self.setDeck, actionLog=self.actionLog)
+        GameMethods.resolveMove(GameMethods, agent, move, target, self.isBlocked, self.agents, self.deck, self.setDeck, moveLog=self.moveLog)
 
         env.dones = [agent.numCards == 0 for agent in env.agents]
 
@@ -92,7 +93,7 @@ class CoupEnvironment(AECEnv):
                 break
         if blockingPlayer:
             print(f"\n{blockingPlayer.name} blocks with {cardAIBlocksWith}")
-            if not GameMethods.isSuccessfullyCalledOut(GameMethods, card=cardAIBlocksWith, playerMoving=blockingPlayer, players=self.agents, deck=self.deck, setDeck=self.setDeck, actionLog=self.actionLog):
+            if not GameMethods.isSuccessfullyCalledOut(GameMethods, card=cardAIBlocksWith, playerMoving=blockingPlayer, players=self.agents, deck=self.deck, setDeck=self.setDeck, moveLog=self.moveLog):
                 return True
             return False
         return False
@@ -176,7 +177,7 @@ if __name__ == "__main__":
                     action = torch.multinomial(actionList, 1).item()
                     logActionProb = torch.log1p(actionList[action] - 1)
                 else:
-                    action = agent.makeMove(env.agents, env.actionLog)
+                    action = agent.makeMove(env.agents, env.moveLog)
                     logActionProb = torch.tensor(1) # Shouldn't affect
 
             env.step(action, agent, logActionProb)
@@ -189,7 +190,7 @@ if __name__ == "__main__":
             if len([True for d in env.dones if not d]) == 1: #If only one player is left, it is p0 based on above condition
                 p0Place = 1
                 break 
-        p0Moves = [a for a in env.actionLog if a.playerId == 0]
+        p0Moves = [a for a in env.moveLog if a.playerId == 0]
         p0NumberOfKills = len([a for a in p0Moves if a.action in Constants.LISTOFKILLMOVES])
         print(f"Number of p0 kills: {p0NumberOfKills}")
         

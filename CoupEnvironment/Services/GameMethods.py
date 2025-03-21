@@ -1,15 +1,12 @@
 from Objects.Move import Move
-from Objects.Move import MoveWithTarget
+from Objects.MoveWithTarget import MoveWithTarget
 from Objects.Card import Card
 from Players.Player import Player
 from Players.AIPlayer3 import AIPlayer3
-from Services.InputWrapper import wrapInput
 import random
 from Objects.Action import *
-from Services.ActionLogger import ActionLogger
 import numpy as np
 import torch
-from torch import Tensor
 import torch.nn.functional as F
 from Constants import Constants
 from typing import Tuple
@@ -31,20 +28,13 @@ class GameMethods:
         playerMoving: Player,
         players: list[Player],
         deck: list[Card],
-        setDeck,
-        actionLog: list[Action]) -> bool:
+        setDeck,) -> bool:
 
         isCalledOut = False
         playerCallingOut = None
         for player in players:
             if(player.getName() != playerMoving.getName()):
                 if(player.callsActionOut()):
-                    ActionLogger.logAction(
-                        action=CallOutAction(
-                            playerActing=playerMoving,
-                            playerCallingOut=player,
-                            cardActing=card),
-                        actionLog=actionLog)
                     isCalledOut = True
                     playerCallingOut = player
                     break
@@ -76,8 +66,7 @@ class GameMethods:
         isBlocked,
         players: list[Player],
         deck: list[Card],
-        setDeck,
-        actionLog: list[Action]) -> None:
+        setDeck,) -> None:
 
         if move == Move.INCOME:
             player.updateNumCoins(1)
