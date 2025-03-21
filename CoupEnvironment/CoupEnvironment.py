@@ -15,6 +15,8 @@ import torch.optim as optim
 import torch.nn.functional as F
 from math import log
 import matplotlib.pyplot as plt
+from Objects.GameLog import GameLog
+import csv
 
 class CoupEnvironment(AECEnv):
     metadata = {
@@ -38,6 +40,7 @@ class CoupEnvironment(AECEnv):
         self.rewards = {agent.id: 0 for agent in self.agents}
         self.dones = {agent.id: False for agent in self.agents}
         self.actionLog: list[Log] = []
+        self.gameLog: list[GameLog] = []
 
         self.action_spaces = {agent.id: spaces.Discrete(13) for agent in self.agents} # [Income, Foreign Aid, Coup Opp A, Coup Opp B, Coup Opp C, Tax, Steal Opp A, Steal Opp B, Steal Opp C, Assassinate Opp A, Assassinate Opp B, Assassinate Opp C, Exchange]
         self.observation_spaces = {agent.id: spaces.Discrete(1) for agent in self.agents}
@@ -120,6 +123,34 @@ class CoupEnvironment(AECEnv):
             return False
         return False
     
+    def logGame(self, gameNum: int, rank: int, numKills: int, policyLoss: float, chanceofCoupInGameWinningState: float, chanceofAssassinateInGameWinningState: float):
+        self.gameLog.append(GameLog(gameNum, rank, numKills, policyLoss, chanceofCoupInGameWinningState, chanceofAssassinateInGameWinningState))
+
+    def logGameDataInCSV(self, winPercentage: float) -> None:
+        with open("CSVs/GameData.csv", mode='a', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(["### Training new model"])
+            writer.writerow({
+                "GameNum": "GameNum",
+                "Rank": "Rank",
+                "NumKills": "NumKills",
+                "PolicyLoss": "PolicyLoss",
+                "ChanceOfCoupInGameWinningState": "ChanceOfCoupInGameWinningState",
+                "ChanceOfAssassinateInGameWinningState": "ChanceOfAssassinateInGameWinningState",
+                "WinPercentage": "WinPercentage"
+            }.values())
+            for game in env.gameLog:
+                writer.writerow({
+                "GameNum": game.gameNum,
+                "Rank": game.rank,
+                "NumKills": game.numKills,
+                "PolicyLoss": game.policyLoss,
+                "ChanceOfCoupInGameWinningState": game.chanceOfCoupInGameWinningState,
+                "ChanceOfAssassinateInGameWinningState": game.chanceOfAssasssinateInGameWinningState,
+                "WinPercentage": winPercentage,
+            }.values())
+        return
+
     def setPlayers(self, newPlayers) -> None:
         self.players = newPlayers
 
@@ -135,6 +166,8 @@ class PolicyNetwork(nn.Module):
         super(PolicyNetwork, self).__init__()
         self.fc = nn.Sequential(
             nn.Linear(numStateVars, 128),
+            nn.LeakyReLU(negative_slope=0.01),
+            nn.Linear(128, 128),
             nn.ReLU(),
             nn.Linear(128, numActionOptions),
         )
@@ -184,17 +217,17 @@ if __name__ == "__main__":
     # Using one-hot encoding (3 values for each player's number of cards, 5 for each player's number of coins)
     # Number of coins can be 0, 1, 2, 3-6, or 7+ (Split based on what actions the player can do)
     policyNet = PolicyNetwork(32, 13)
-    optimizer = optim.Adam(policyNet.parameters(), lr=1e-2)
+    optimizer = optim.Adam(policyNet.parameters(), lr=1e-4)
     currWins: int = 0
     winPercentageOverTime: list[float] = []
-    numGames = 10000
+    numGames = 5000
     for i in range(numGames):
         env.reset()
         for agent in env.agent_iter():
             reward, done, info = env.rewards[agent.id], env.dones[agent.id], {}
             if done:
                 action = None
-                actionProb = None
+                logActionProb = None
             else:
                 if agent.id == 0:
                     actionMask: list[np.int8] = GameMethods.getActionMask(agent, env.agents)
@@ -206,12 +239,12 @@ if __name__ == "__main__":
                     actionList = F.softmax(actionList, dim=0)
                     print(f"Action list: {actionList}")
                     action = torch.multinomial(actionList, 1).item()
-                    actionProb = actionList[action].item()
+                    logActionProb = torch.log1p(actionList[action] - 1)
                 else:
                     action = agent.makeMove(env.agents, env.actionLog)
-                    actionProb = 1 # Shouldn't affect
+                    logActionProb = torch.tensor(1) # Shouldn't affect
 
-            env.step(action, agent, actionProb)
+            env.step(action, agent, logActionProb)
             env.render()
 
             if [a.numCards for a in env.agents if a.id == 0][0] == 0: #If p0 is out, collect their ranking and end
@@ -231,7 +264,11 @@ if __name__ == "__main__":
             MoveWithTarget.ASSASSINATEPLAYER3]])
         print(f"Number of p0 kills: {p0NumberOfKills}")
         
-        policyLoss = [reward * -log(action.actionProb) for reward, action in zip(computeDiscountedRewards(len(p0Moves)), p0Moves)]
+        rewards = torch.tensor(computeDiscountedRewards(len(p0Moves)), dtype=torch.float32, device=logActionProb.device)
+        for move in p0Moves:
+            print(f"Move {move.playerId} requires: {move.actionProb.requires_grad}")
+        policyLoss = torch.stack([reward * action.actionProb for reward, action in zip(rewards, p0Moves)]).sum()
+        print(f"A: {policyLoss.requires_grad}")
         policLossKillCountConstant = 1 - p0NumberOfKills # Killing less than one card is punished, killing more than one is rewarded
         policyLossRankMultiplierDict = {
             1: -2,
@@ -239,49 +276,47 @@ if __name__ == "__main__":
             3: 2,
             4: 3
         }
-        policyMultiplierOverall = policyLossRankMultiplierDict[p0Place] + policLossKillCountConstant
-        policyLoss = [p*policyMultiplierOverall for p in policyLoss]
+        policyMultiplierOverall = torch.tensor(policyLossRankMultiplierDict[p0Place] + policLossKillCountConstant, dtype=torch.float32, device=policyLoss.device)
+        policyLoss = policyMultiplierOverall * policyLoss#[p*policyMultiplierOverall for p in policyLoss]
+        print(f"B: {policyLoss.requires_grad}")
 
         if env.agents[0].numCards > 0:
             currWins += 1
         winPercentageOverTime.append(currWins/(i+1))
 
         optimizer.zero_grad()
-        policyLoss = torch.tensor(policyLoss, dtype=torch.float32, requires_grad=True).sum()
+        #policyLoss = torch.tensor(policyLoss, dtype=torch.float32, requires_grad=True).sum()
         print(f"policy loss =: {policyLoss}")
+
+        #log
+        oneHotEncodedStateAbleToEndGame = [
+        0,1,0,
+        0,1,0,
+        1,0,0,
+        1,0,0,
+        0,0,0,0,1,
+        0,1,0,0,0,
+        0,0,1,0,0,
+        1,0,0,0,0]
+        env.logGame(
+            gameNum = i,
+            rank = p0Place,
+            numKills = p0NumberOfKills,
+            policyLoss = policyLoss.item(),
+            chanceofCoupInGameWinningState = policyNet(torch.Tensor(oneHotEncodedStateAbleToEndGame))[MoveWithTarget.COUPPLAYER1].item(),
+            chanceofAssassinateInGameWinningState = policyNet(torch.Tensor(oneHotEncodedStateAbleToEndGame))[MoveWithTarget.ASSASSINATEPLAYER1].item(),
+        )
+
         policyLoss.backward()
+
+        for param in policyNet.parameters():
+            print(param.grad)
         optimizer.step()
-    
+
+    env.logGameDataInCSV(currWins/numGames)
     env.close()
 
-    #Test States
-    oneHotEncodedStateCoupAvailable = [
-        0,0,1,
-        0,0,1,
-        0,0,1,
-        0,0,1,
-        0,0,0,0,1,
-        0,0,1,0,0,
-        0,1,0,0,0,
-        1,0,0,0,0]
-    print(f"Action list for start of game: {F.softmax(policyNet(torch.Tensor(oneHotEncodedStateCoupAvailable)), dim=0)}")
-    
-    oneHotEncodedStateAbleToEndGame = [
-        0,1,0,
-        0,1,0,
-        1,0,0,
-        1,0,0,
-        0,0,0,0,1,
-        0,1,0,0,0,
-        0,0,1,0,0,
-        1,0,0,0,0]
-    actionList = policyNet(torch.Tensor(oneHotEncodedStateAbleToEndGame))
-    actionList[~torch.tensor([1,1,1,0,0,1,1,0,0,1,0,0,1], dtype=torch.bool)] = float('-inf')
-    print(f"Action list for game ending move: {F.softmax(actionList, dim=0)}")
-
-    
-
-    plt.plot(range(numGames), winPercentageOverTime, marker='o', linestyle='-')
+    plt.plot(range(100,numGames), winPercentageOverTime[100:], marker='o', linestyle='-')
     plt.xlabel("Games played")
     plt.ylabel("Win percentage")
     plt.title("Win percentage over time")
