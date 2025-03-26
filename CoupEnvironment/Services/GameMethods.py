@@ -10,16 +10,7 @@ from typing import Tuple
 from Objects.GameLog import GameLog
 
 
-class GameMethods:
-    def checkGameOver(players: list[Player]) -> bool:
-        return len(players) == 1
-
-    def checkDeaths(playerOrder: list[Player]):
-        for i in range(len(playerOrder)):
-            if playerOrder[i].getNumCards() == 0:
-                return i
-        return -1
-    
+class GameMethods:  
     def isSuccessfullyCalledOut(
         self,
         card: Card,

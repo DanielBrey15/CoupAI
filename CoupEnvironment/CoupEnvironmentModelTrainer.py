@@ -19,10 +19,10 @@ import csv
 from Constants import Constants
 from Models.PolicyNetwork import PolicyNetwork
 
-class CoupEnvironment(AECEnv):
+class CoupEnvironmentModelTrainer(AECEnv):
     metadata = {
         "render_modes": ["human"],
-        "name": "coupEnvironment",
+        "name": "coupEnvironmentModelTrainer",
     }
 
     def __str__(self):
@@ -133,7 +133,7 @@ class CoupEnvironment(AECEnv):
         print(self)
 
 if __name__ == "__main__":
-    env = CoupEnvironment()
+    env = CoupEnvironmentModelTrainer()
     # Using one-hot encoding (3 values for each player's number of cards, 5 for each player's number of coins)
     # Number of coins can be 0, 1, 2, 3-6, or 7+ (Split based on what actions the player can do)
     policyNet = PolicyNetwork(32, 13)
