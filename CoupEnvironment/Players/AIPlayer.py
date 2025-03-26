@@ -1,42 +1,42 @@
 from Objects.Move import Move
+from Objects.MoveWithTarget import MoveWithTarget
 from Objects.Card import Card
-from Players.Player import Player
-from typing import Optional, List
 from Objects.Action import Action
+from Objects.ActionType import ActionType
+from Players.Player import Player
+import random
+from typing import Optional, List
 
 class AIPlayer(Player):
     def __init__(self, card1: Card, card2: Card, id: int = 1, name: str = "cg32"):
-        super().__init__(id = id, name = name, card1 = card1, card2 = card2)
+        super().__init__(id = id, name = name, card1 = card1, card2 =card2)
         self.isAI: bool = True
 
-    def makeMove(self, players: list[Player], actionLog: list[Action]) -> Move:
-        #Greedy: Gain coins until enough to coup
+    def makeMove(self, players: list[Player], actionLog: list[Action]) -> MoveWithTarget:
+        #Greedy: Gain coins until enough to coup/assassinate
         if self.numCoins >= 10:
-            return Move.COUP
+            numAliveOpps = len([p for p in players if p.id != self.id and p.numCards > 0])
+            if numAliveOpps == 1:
+                return MoveWithTarget.COUPPLAYER1
+            elif numAliveOpps == 2:
+                return random.choice([MoveWithTarget.COUPPLAYER1, MoveWithTarget.COUPPLAYER2])
+            return random.choice([MoveWithTarget.COUPPLAYER1, MoveWithTarget.COUPPLAYER2, MoveWithTarget.COUPPLAYER3])
+        elif self.cards.__contains__(Card.ASSASSIN) and self.numCoins >= 3:
+            numAliveOpps = len([p for p in players if p.id != self.id and p.numCards > 0])
+            if numAliveOpps == 1:
+                return random.choice([MoveWithTarget.ASSASSINATEPLAYER1, MoveWithTarget.INCOME])
+            elif numAliveOpps == 2:
+                return random.choice([MoveWithTarget.ASSASSINATEPLAYER1, MoveWithTarget.ASSASSINATEPLAYER2])
+            return random.choice([MoveWithTarget.ASSASSINATEPLAYER1, MoveWithTarget.ASSASSINATEPLAYER2, MoveWithTarget.ASSASSINATEPLAYER3])
         elif self.cards.__contains__(Card.AMBASSADOR):
-            return Move.EXCHANGE
+            return MoveWithTarget.EXCHANGE
         elif self.cards.__contains__(Card.DUKE):
-            return Move.TAX
-        elif self.cards.__contains__(Card.CAPTAIN):
-            return Move.STEAL
+            return MoveWithTarget.TAX
         else:
-            return Move.INCOME
+            return MoveWithTarget.INCOME
 
-    def acquireTarget(self, players: List[Player], move: Move, actionLog: List[Action]) -> Player:
-        return self.findPlayerLeftWithMostCoins(players)
-
-    def findPlayerLeftWithMostCoins(self, players: List[Player]) -> Player:
-        playersTargettable = filter(lambda p: len(p.cards) > 0 and p.getName() != self.getName(), players)
-        target = None
-        targetCoins = -1
-        for player in playersTargettable:
-            if player.getNumCoins() > targetCoins:
-                target = player
-                targetCoins = player.getNumCoins()
-        return target
-
-    def AIBlock(self, playerMoving: Player, move: Move, target: Player) -> Optional[Card]:
-        # If CG32 will block if they can truthfully
+    def AIBlock(self, playerMoving, move, target) -> Optional[Card]:
+        # AI will block if they can truthfully
         if target == self:
             if move == Move.ASSASSINATE and self.hasCard(Card.CONTESSA):
                 return Card.CONTESSA
@@ -47,14 +47,11 @@ class AIPlayer(Player):
         elif playerMoving != self and move == Move.FOREIGNAID and self.hasCard(Card.DUKE):
             return Card.DUKE
         return None
-    
-    # def AICallOut(self, card: Card) -> bool:
-    #     return self.hasTwoOfCard(card)
 
-    def hasCard(self, card: Card) -> bool:
+    def hasCard(self, card) -> bool:
         return card in self.cards
 
-    def hasTwoOfCard(self, card: Card) -> bool:
+    def hasTwoOfCard(self, card) -> bool:
         if self.getNumCards() == 2:
             return self.cards[0] == card and self.cards[1] == card
         else: 
@@ -102,5 +99,6 @@ class AIPlayer(Player):
             raise ValueError(f"Cards kept not equal to numcards: {self.getNumCards()}")
         return cardsKept
     
-    def callsActionOut(self):
+    def callsActionOut(self) -> bool:
         return False
+        #return random.random() < 0.05

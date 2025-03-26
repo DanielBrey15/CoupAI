@@ -2,14 +2,12 @@ from Objects.Move import Move
 from Objects.MoveWithTarget import MoveWithTarget
 from Objects.Card import Card
 from Players.Player import Player
-from Players.AIPlayer3 import AIPlayer3
+from Players.AIPlayer import AIPlayer
+from Players.AIPlayerML import AIPlayerML
 import random
 from Objects.Action import *
-import numpy as np
-import torch
-import torch.nn.functional as F
-from Constants import Constants
 from typing import Tuple
+from Objects.GameLog import GameLog
 
 
 class GameMethods:
@@ -28,7 +26,8 @@ class GameMethods:
         playerMoving: Player,
         players: list[Player],
         deck: list[Card],
-        setDeck,) -> bool:
+        setDeck,
+        moveLog: list[GameLog]) -> bool:
 
         isCalledOut = False
         playerCallingOut = None
@@ -66,7 +65,8 @@ class GameMethods:
         isBlocked,
         players: list[Player],
         deck: list[Card],
-        setDeck,) -> None:
+        setDeck,
+        moveLog: list[GameLog]) -> None:
 
         if move == Move.INCOME:
             player.updateNumCoins(1)
@@ -74,10 +74,10 @@ class GameMethods:
             if not isBlocked(playerMoving = player, move = Move.FOREIGNAID, potentialBlockingCard = Card.DUKE):
                 player.updateNumCoins(2)
         elif move == Move.TAX:
-            if not self.isSuccessfullyCalledOut(self, card=Card.DUKE, playerMoving=player, players=players, deck=deck, setDeck=setDeck, actionLog=actionLog):
+            if not self.isSuccessfullyCalledOut(self, card=Card.DUKE, playerMoving=player, players=players, deck=deck, setDeck=setDeck, moveLog=moveLog):
                 player.updateNumCoins(3)
         elif move == Move.EXCHANGE:
-            if not self.isSuccessfullyCalledOut(self, card=Card.AMBASSADOR, playerMoving=player, players=players, deck=deck, setDeck=setDeck, actionLog=actionLog):
+            if not self.isSuccessfullyCalledOut(self, card=Card.AMBASSADOR, playerMoving=player, players=players, deck=deck, setDeck=setDeck, moveLog=moveLog):
                 print(f"{player.getName()} exchanges!")
                 exchangeCards: list[Card] = deck[:2]
                 cardsReturned: list[Card] = player.resolveExchange(exchangeCards, self)
@@ -89,14 +89,14 @@ class GameMethods:
             player.updateNumCoins(-7)
             target.loseCard()
         elif move == Move.STEAL:
-            if not self.isSuccessfullyCalledOut(self, card=Card.CAPTAIN, playerMoving=player, players=players, deck=deck, setDeck=setDeck, actionLog=actionLog):
+            if not self.isSuccessfullyCalledOut(self, card=Card.CAPTAIN, playerMoving=player, players=players, deck=deck, setDeck=setDeck, moveLog=moveLog):
                 if not isBlocked(playerMoving = player, move = Move.STEAL, target = target):
                     coinsStolen = min(2, target.getNumCoins())
                     player.updateNumCoins(coinsStolen)
                     target.updateNumCoins(-coinsStolen)
         elif move == Move.ASSASSINATE:
             player.updateNumCoins(-3)
-            if not self.isSuccessfullyCalledOut(self, card=Card.ASSASSIN, playerMoving=player, players=players, deck=deck, setDeck=setDeck, actionLog=actionLog):
+            if not self.isSuccessfullyCalledOut(self, card=Card.ASSASSIN, playerMoving=player, players=players, deck=deck, setDeck=setDeck, moveLog=moveLog):
                 if not isBlocked(playerMoving = player, move = Move.ASSASSINATE, target = target, potentialBlockingCard = Card.CONTESSA):
                     target.loseCard()
         else:
@@ -108,14 +108,6 @@ class GameMethods:
             if player.name == name:
                 return player
         return None
-    
-    def validateMove(self, player: Player, move: Move) -> bool:
-        if move == Move.COUP:
-            return player.getNumCoins() >= 7
-        if move == Move.ASSASSINATE:
-            return player.getNumCoins() >= 3 and player.getNumCoins() < 10
-        if move in (Move.INCOME, Move.FOREIGNAID, Move.TAX, Move.EXCHANGE, Move.STEAL):
-            return player.getNumCoins() < 10
         
     def getPlayers(self) -> list[Player]:
         return self.players
@@ -138,70 +130,20 @@ class GameMethods:
             deck.extend([card, card, card])
         random.shuffle(deck)
         pCards, deck = deck[:2], deck[2:]
-        players.append(AIPlayer3(card1 = pCards[0], card2 = pCards[1], id = 0, name = "p0")) # Separated this for when we use a different class for ML player 0 
+        players.append(AIPlayerML(card1 = pCards[0], card2 = pCards[1], modelFile="../ModelFiles.pt", id = 0, name = "p0")) # Separated this for when we use a different class for ML player 0 
         for p in range(1,4):
             pCards, deck = deck[:2], deck[2:]
-            players.append(AIPlayer3(card1 = pCards[0], card2 = pCards[1], id = p, name = f"p{p}"))
+            players.append(AIPlayer(card1 = pCards[0], card2 = pCards[1], id = p, name = f"p{p}"))
         return deck, players
-
 
     def getDeck(self) -> list[Card]:
         return self.deck
-    
-    def getActionMask(currPlayer: Player, players: list[Player]) -> list[np.int8]:
-        actionMask = np.ones(13, dtype=np.int8)
-        opps = [p for p in players if p.id != currPlayer.id]
-        opps.sort(key= lambda agent: (agent.numCards, agent.numCoins), reverse = True)
-        if opps[0].numCards == 0:
-            actionMask[MoveWithTarget.COUPPLAYER1] = 0
-            actionMask[MoveWithTarget.STEALPLAYER1] = 0
-            actionMask[MoveWithTarget.ASSASSINATEPLAYER1] = 0
-        if opps[1].numCards == 0:
-            actionMask[MoveWithTarget.COUPPLAYER2] = 0
-            actionMask[MoveWithTarget.STEALPLAYER2] = 0
-            actionMask[MoveWithTarget.ASSASSINATEPLAYER2] = 0
-        if opps[2].numCards == 0:
-            actionMask[MoveWithTarget.COUPPLAYER3] = 0
-            actionMask[MoveWithTarget.STEALPLAYER3] = 0
-            actionMask[MoveWithTarget.ASSASSINATEPLAYER3] = 0
-
-        if currPlayer.numCoins < 7:
-            actionMask[MoveWithTarget.COUPPLAYER1] = 0
-            actionMask[MoveWithTarget.COUPPLAYER2] = 0
-            actionMask[MoveWithTarget.COUPPLAYER3] = 0
-            if currPlayer.numCoins < 3:
-                actionMask[MoveWithTarget.ASSASSINATEPLAYER1] = 0
-                actionMask[MoveWithTarget.ASSASSINATEPLAYER2] = 0
-                actionMask[MoveWithTarget.ASSASSINATEPLAYER3] = 0
-        elif currPlayer.numCoins > 10:
-            actionMask[MoveWithTarget.INCOME] = 0
-            actionMask[MoveWithTarget.FOREIGNAID] = 0
-            actionMask[MoveWithTarget.TAX] = 0
-            actionMask[MoveWithTarget.STEALPLAYER1] = 0
-            actionMask[MoveWithTarget.STEALPLAYER2] = 0
-            actionMask[MoveWithTarget.STEALPLAYER3] = 0
-            actionMask[MoveWithTarget.ASSASSINATEPLAYER1] = 0
-            actionMask[MoveWithTarget.ASSASSINATEPLAYER2] = 0
-            actionMask[MoveWithTarget.ASSASSINATEPLAYER3] = 0
-            actionMask[MoveWithTarget.EXCHANGE] = 0
-        
-        return actionMask
-    
 
     def computeDiscountedRewards(numMoves, gamma=0.99):
         discountedRewards = []
         for r in reversed(range(numMoves)):
             discountedRewards.append(gamma**r)
         return discountedRewards
-
-    def getOneHotEncodeState(orderedPlayers: list[Player]):
-        orderedNumCards = [p.numCards for p in orderedPlayers]
-        orderedNumCoinBrackets = [Constants.NUMBEROFCOINSTOSTATEBRACKETMAPPING[p.numCoins] for p in orderedPlayers]
-        oneHotInputsCards = torch.cat([F.one_hot(torch.tensor(i), num_classes=3) for i in orderedNumCards])
-        oneHotInputsCoins = torch.cat([F.one_hot(torch.tensor(j), num_classes=5) for j in orderedNumCoinBrackets])
-        allOneHotInputs = torch.cat([oneHotInputsCards, oneHotInputsCoins]).float()
-        return allOneHotInputs
-
 
     def splitMoveAndTarget(moveWithTarget: MoveWithTarget, oppDict: dict[int, int]) -> Tuple[Move, (int | None)]:
         targetDict = {

@@ -1,16 +1,26 @@
-from Objects.Move import Move, MoveWithTarget
+from Objects.Move import Move
+from Objects.MoveWithTarget import MoveWithTarget
 from Objects.Card import Card
 from Objects.Action import Action
 from Players.Player import Player
 import random
-from typing import Optional, List
+from typing import Optional
+from Services.PlayerMethods import *
+from Models.PolicyNetwork import PolicyNetwork
+
 
 class AIPlayerML(Player):
-    def __init__(self, card1: Card, card2: Card, id: int = 1, name: str = "cg32"):
+    def __init__(self, card1: Card, card2: Card, modelFile: str, id: int = 1, name: str = "cg32"):
         super().__init__(id = id, name = name, card1 = card1, card2 =card2)
         self.isAI: bool = True
+        self.modelFile: str = modelFile
 
-    def makeMove(self, players: list[Player], actionLog: list[Action]) -> MoveWithTarget:
+        # Using one-hot encoding (3 values for each player's number of cards, 5 for each player's number of coins)
+        # Number of coins can be 0, 1, 2, 3-6, or 7+ (Split based on what actions the player can do)
+        self.model = PolicyNetwork(32, 13)
+        self.model.load_state_dict(torch.load("ModelFiles/Model1.pt", weights_only=True))
+
+    def makeMove2(self, players: list[Player], actionLog: list[Action]) -> MoveWithTarget:
         #Greedy: Gain coins until enough to coup/assassinate
         if self.numCoins >= 10:
             numOpps = len([p for p in players if p.id != self.id])
@@ -32,9 +42,20 @@ class AIPlayerML(Player):
             return MoveWithTarget.TAX
         else:
             return MoveWithTarget.INCOME
+        
+    def makeMove(self, players: list[Player], actionLog: list[Action]) -> MoveWithTarget:
+        actionMask: list[np.int8] = PlayerMethods.getActionMask(self, players)
+        opps = [a for a in players if a.id != self.id]
+        opps.sort(key= lambda a: (a.numCards, a.numCoins), reverse = True)
+        encodedState = PlayerMethods.getOneHotEncodeState([self, opps[0], opps[1], opps[2]])
+        actionList = self.model(encodedState)
+        actionList[~torch.tensor(actionMask, dtype=torch.bool)] = float('-inf')
+        actionList = F.softmax(actionList, dim=0)
+        action = torch.multinomial(actionList, 1).item()
+        return MoveWithTarget(action)
 
     def AIBlock(self, playerMoving, move, target) -> Optional[Card]:
-        # If CG32 will block if they can truthfully
+        # AI will block if they can truthfully
         if target == self:
             if move == Move.ASSASSINATE and self.hasCard(Card.CONTESSA):
                 return Card.CONTESSA
@@ -85,7 +106,7 @@ class AIPlayerML(Player):
         cardsKept = []
         if Card.DUKE in exchangeCards:
             cardsKept.append(Card.DUKE)
-        if Card.CAPTAIN in exchangeCards:
+        if Card.CAPTAIN in exchangeCards and len(cardsKept) < self.getNumCards():
             cardsKept.append(Card.CAPTAIN)
         if Card.AMBASSADOR in exchangeCards and len(cardsKept) < self.getNumCards():
             cardsKept.append(Card.AMBASSADOR)
