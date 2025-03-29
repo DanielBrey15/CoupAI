@@ -16,6 +16,12 @@ class Player:
         deadList = (', DEAD: ' +', '.join(str(card) for card in self.deadCards)) if self.numCards < 2 else ""
         return f"{self.name} - {self.numCards} cards, {self.numCoins} coins{aliveList}{deadList}"
 
+    def resetPlayer(self, card1: Card, card2: Card):
+        self.numCoins = 2
+        self.numCards = 2
+        self.cards = [card1, card2]
+        self.deadCards = []
+    
     def updateNumCoins(self, change) -> None:
         self.numCoins += change
 

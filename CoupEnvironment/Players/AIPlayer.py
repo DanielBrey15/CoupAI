@@ -8,9 +8,10 @@ import random
 from typing import Optional, List
 
 class AIPlayer(Player):
-    def __init__(self, card1: Card, card2: Card, id: int = 1, name: str = "cg32"):
+    def __init__(self, card1: Card, card2: Card, id: int = 1, isTraining = False, name: str = "cg32"):
         super().__init__(id = id, name = name, card1 = card1, card2 =card2)
         self.isAI: bool = True
+        self.isTraining = isTraining
 
     def makeMove(self, players: list[Player], actionLog: list[Action]) -> MoveWithTarget:
         #Greedy: Gain coins until enough to coup/assassinate

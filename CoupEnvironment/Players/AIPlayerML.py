@@ -10,9 +10,10 @@ from Models.PolicyNetwork import PolicyNetwork
 
 
 class AIPlayerML(Player):
-    def __init__(self, card1: Card, card2: Card, modelFile: str, id: int = 1, name: str = "cg32"):
+    def __init__(self, card1: Card, card2: Card, modelFile: str, id: int = 1, isTraining = False, name: str = "cg32"):
         super().__init__(id = id, name = name, card1 = card1, card2 =card2)
         self.isAI: bool = True
+        self.isTraining = isTraining
         self.modelFile: str = modelFile
 
         # Using one-hot encoding (3 values for each player's number of cards, 5 for each player's number of coins)

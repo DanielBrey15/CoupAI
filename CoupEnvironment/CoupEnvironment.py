@@ -41,8 +41,7 @@ class CoupEnvironment(AECEnv):
 
     def reset(self, seed=32, options=None) -> None:
         random.seed(seed)
-        deck, agents = GameMethods.createDeckAndPlayers()
-        self.agents: list[Player] =  agents
+        deck = GameMethods.resetDeckAndPlayers(self.agents)
         self.deck: list[Card] = deck
         self.agent_selection = self.agents[0]
         self.rewards = {agent.id: 0 for agent in self.agents}

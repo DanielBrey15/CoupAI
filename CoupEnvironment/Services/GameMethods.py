@@ -126,6 +126,16 @@ class GameMethods:
             pCards, deck = deck[:2], deck[2:]
             players.append(AIPlayer(card1 = pCards[0], card2 = pCards[1], id = p, name = f"p{p}"))
         return deck, players
+    
+    def resetDeckAndPlayers(players: list[Player]):
+        deck: list[Card] = []
+        for card in Card:
+            deck.extend([card, card, card])
+        random.shuffle(deck)
+        for p in players:
+            pCards, deck = deck[:2], deck[2:]
+            p.resetPlayer(pCards[0], pCards[1])
+        return deck
 
     def getDeck(self) -> list[Card]:
         return self.deck
