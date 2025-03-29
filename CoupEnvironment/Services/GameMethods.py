@@ -121,7 +121,7 @@ class GameMethods:
             deck.extend([card, card, card])
         random.shuffle(deck)
         pCards, deck = deck[:2], deck[2:]
-        players.append(AIPlayerML(card1 = pCards[0], card2 = pCards[1], modelFile="ModelFiles/Model2.pt", id = 0, name = "p0")) # Separated this for when we use a different class for ML player 0 
+        players.append(AIPlayerML(card1 = pCards[0], card2 = pCards[1], modelFile="ModelFiles/Model3.pt", isTraining = True, id = 0, name = "p0")) # Separated this for when we use a different class for ML player 0 
         for p in range(1,4):
             pCards, deck = deck[:2], deck[2:]
             players.append(AIPlayer(card1 = pCards[0], card2 = pCards[1], id = p, name = f"p{p}"))

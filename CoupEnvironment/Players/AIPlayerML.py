@@ -53,7 +53,8 @@ class AIPlayerML(Player):
         actionList[~torch.tensor(actionMask, dtype=torch.bool)] = float('-inf')
         actionList = F.softmax(actionList, dim=0)
         action = torch.multinomial(actionList, 1).item()
-        return MoveWithTarget(action)
+        logActionProb = torch.log1p(actionList[action] - 1)
+        return MoveWithTarget(action), logActionProb
 
     def AIBlock(self, playerMoving, move, target) -> Optional[Card]:
         # AI will block if they can truthfully

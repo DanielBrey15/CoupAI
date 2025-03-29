@@ -117,8 +117,7 @@ if __name__ == "__main__":
                 action = None
                 logActionProb = None
             else:
-                action = agent.makeMove(env.agents, env.moveLog)
-                logActionProb = torch.tensor(1) # Shouldn't affect
+                action, logActionProb = agent.makeMove(env.agents, env.moveLog)
 
             env.step(action, agent, logActionProb)
             env.render()
@@ -127,15 +126,19 @@ if __name__ == "__main__":
             if(len(newDeadPlayerIds) > 0):
                 env.playerIdsRanked.extend(newDeadPlayerIds)
             if len(env.playerIdsRanked) == 3:
+                playerIdAlive = [p.id for p in env.agents if p.numCards > 0]
+                env.playerIdsRanked.append(playerIdAlive)
                 break
+        playerUpdater.updatePlayers(env.moveLog, env.playerIdsRanked)
 
         if env.agents[0].numCards > 0:
             currWins += 1
         winPercentageOverTime.append(currWins/(i+1))
 
+    playerUpdater.storePlayerModels()
     env.close()
 
-    plt.plot(range(100,numGames), winPercentageOverTime[100:], marker='o', linestyle='-')
+    plt.plot(range(100,numGames), winPercentageOverTime[100:], color='blue', marker='o', linestyle='-')
     plt.xlabel("Games played")
     plt.ylabel("Win percentage")
     plt.title("Win percentage over time")

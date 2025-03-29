@@ -5,7 +5,7 @@ from Objects.Action import Action
 from Objects.ActionType import ActionType
 from Players.Player import Player
 import random
-from typing import Optional, List
+from typing import Optional
 
 class AIPlayer(Player):
     def __init__(self, card1: Card, card2: Card, id: int = 1, isTraining = False, name: str = "cg32"):
@@ -20,23 +20,23 @@ class AIPlayer(Player):
         if self.numCoins >= 10:
             numAliveOpps = len([p for p in players if p.id != self.id and p.numCards > 0])
             if numAliveOpps == 1:
-                return MoveWithTarget.COUPPLAYER1
+                return MoveWithTarget.COUPPLAYER1, 1
             elif numAliveOpps == 2:
-                return random.choice([MoveWithTarget.COUPPLAYER1, MoveWithTarget.COUPPLAYER2])
-            return random.choice([MoveWithTarget.COUPPLAYER1, MoveWithTarget.COUPPLAYER2, MoveWithTarget.COUPPLAYER3])
+                return random.choice([MoveWithTarget.COUPPLAYER1, MoveWithTarget.COUPPLAYER2]), 1
+            return random.choice([MoveWithTarget.COUPPLAYER1, MoveWithTarget.COUPPLAYER2, MoveWithTarget.COUPPLAYER3]), 1
         elif self.cards.__contains__(Card.ASSASSIN) and self.numCoins >= 3:
             numAliveOpps = len([p for p in players if p.id != self.id and p.numCards > 0])
             if numAliveOpps == 1:
-                return random.choice([MoveWithTarget.ASSASSINATEPLAYER1, MoveWithTarget.INCOME])
+                return random.choice([MoveWithTarget.ASSASSINATEPLAYER1, MoveWithTarget.INCOME]), 1
             elif numAliveOpps == 2:
-                return random.choice([MoveWithTarget.ASSASSINATEPLAYER1, MoveWithTarget.ASSASSINATEPLAYER2])
-            return random.choice([MoveWithTarget.ASSASSINATEPLAYER1, MoveWithTarget.ASSASSINATEPLAYER2, MoveWithTarget.ASSASSINATEPLAYER3])
+                return random.choice([MoveWithTarget.ASSASSINATEPLAYER1, MoveWithTarget.ASSASSINATEPLAYER2]), 1
+            return random.choice([MoveWithTarget.ASSASSINATEPLAYER1, MoveWithTarget.ASSASSINATEPLAYER2, MoveWithTarget.ASSASSINATEPLAYER3]), 1
         elif self.cards.__contains__(Card.AMBASSADOR):
-            return MoveWithTarget.EXCHANGE
+            return MoveWithTarget.EXCHANGE, 1
         elif self.cards.__contains__(Card.DUKE):
-            return MoveWithTarget.TAX
+            return MoveWithTarget.TAX, 1
         else:
-            return MoveWithTarget.INCOME
+            return MoveWithTarget.INCOME, 1
 
     def AIBlock(self, playerMoving, move, target) -> Optional[Card]:
         # AI will block if they can truthfully

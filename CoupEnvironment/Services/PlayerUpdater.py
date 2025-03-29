@@ -13,14 +13,15 @@ class PlayerUpdater:
         self.playerOptimizers: dict[int, adam.Adam] = {agent.id: optim.Adam(self.playerModels[agent.id].parameters(), lr=1e-4) for agent in agents if agent.isTraining}
         self.playerModelFiles: dict = {agent.id: agent.modelFile for agent in agents if agent.isTraining}
         
-    def updatePlayers(self, moveLog: list[MoveLogEntry]):
+    def updatePlayers(self, moveLog: list[MoveLogEntry], playerIdsRanked: list[int]):
         for agentId in self.playersTraining:
             agentMoves = [a for a in moveLog if a.playerId == agentId]
+            agentFirstMove = agentMoves[0]
             agentNumberOfKills = len([a for a in agentMoves if a.action in Constants.LISTOFKILLMOVES])
-            rewards = torch.tensor(GameMethods.computeDiscountedRewards(len(agentMoves)), dtype=torch.float32) #, device=logActionProb.device
+            rewards = torch.tensor(GameMethods.computeDiscountedRewards(len(agentMoves)), dtype=torch.float32, device=agentFirstMove.actionProb.device) #, device=logActionProb.device
             policyLoss = torch.stack([reward * action.actionProb for reward, action in zip(rewards, agentMoves)]).sum()
             policLossKillCountConstant = 1 - agentNumberOfKills # Killing less than one card is punished, killing more than one is rewarded
-            policyMultiplierOverall = torch.tensor(Constants.POLICYLOSSMULTIPLERBYRANKDICTIONARY[p0Place] + policLossKillCountConstant, dtype=torch.float32, device=policyLoss.device)
+            policyMultiplierOverall = torch.tensor(Constants.POLICYLOSSMULTIPLERBYRANKDICTIONARY[4-playerIdsRanked[agentId]] + policLossKillCountConstant, dtype=torch.float32, device=policyLoss.device)
             policyLoss = policyMultiplierOverall * policyLoss
 
             optimizer = self.playerOptimizers[agentId]
