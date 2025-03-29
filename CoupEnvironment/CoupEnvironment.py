@@ -11,6 +11,7 @@ import torch
 from math import log
 import matplotlib.pyplot as plt
 from Objects.GameLog import GameLog
+from Services.PlayerUpdater import PlayerUpdater
 
 class CoupEnvironment(AECEnv):
     metadata = {
@@ -35,11 +36,12 @@ class CoupEnvironment(AECEnv):
         self.dones = {agent.id: False for agent in self.agents}
         self.moveLog: list[MoveLogEntry] = []
         self.gameLog: list[GameLog] = []
+        self.playerIdsRanked: list[int] = []
 
         self.action_spaces = {agent.id: spaces.Discrete(13) for agent in self.agents} # [Income, Foreign Aid, Coup Opp A, Coup Opp B, Coup Opp C, Tax, Steal Opp A, Steal Opp B, Steal Opp C, Assassinate Opp A, Assassinate Opp B, Assassinate Opp C, Exchange]
         self.observation_spaces = {agent.id: spaces.Discrete(1) for agent in self.agents}
 
-    def reset(self, seed=32, options=None) -> None:
+    def reset(self, seed=32) -> None:
         random.seed(seed)
         deck = GameMethods.resetDeckAndPlayers(self.agents)
         self.deck: list[Card] = deck
@@ -47,6 +49,7 @@ class CoupEnvironment(AECEnv):
         self.rewards = {agent.id: 0 for agent in self.agents}
         self.dones = {agent.id: False for agent in self.agents}
         self.moveLog: list[MoveLogEntry] = []
+        self.playerIdsRanked: list[int] = []
 
     def step(self, action, agent, actionProb) -> None:
         opps = [a for a in self.agents if a.id != agent.id]
@@ -102,6 +105,7 @@ if __name__ == "__main__":
     # Note: Some things are unecessary in this file (such as the action probabilities),
     # but I am going to be using them in the near future so it doesn't make sense to remove it yet.
     env = CoupEnvironment()
+    playerUpdater = PlayerUpdater(env.agents)
     currWins: int = 0
     winPercentageOverTime: list[float] = []
     numGames = 200
@@ -119,13 +123,11 @@ if __name__ == "__main__":
             env.step(action, agent, logActionProb)
             env.render()
 
-            if [a.numCards for a in env.agents if a.id == 0][0] == 0: #If p0 is out, collect their ranking and end
-                p0Place = len([a for a in env.agents if a.numCards > 0]) + 1
+            newDeadPlayerIds = [p.id for p in env.agents if p.numCards == 0 and p.id not in env.playerIdsRanked]
+            if(len(newDeadPlayerIds) > 0):
+                env.playerIdsRanked.extend(newDeadPlayerIds)
+            if len(env.playerIdsRanked) == 3:
                 break
-
-            if len([True for d in env.dones if not d]) == 1: #If only one player is left, it is p0 based on above condition
-                p0Place = 1
-                break 
 
         if env.agents[0].numCards > 0:
             currWins += 1

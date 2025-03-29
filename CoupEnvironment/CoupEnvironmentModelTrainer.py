@@ -18,6 +18,7 @@ from Objects.GameLog import GameLog
 import csv
 from Constants import Constants
 from Models.PolicyNetwork import PolicyNetwork
+from Services.PlayerMethods import PlayerMethods
 
 class CoupEnvironmentModelTrainer(AECEnv):
     metadata = {
@@ -150,10 +151,10 @@ if __name__ == "__main__":
                 logActionProb = None
             else:
                 if agent.id == 0:
-                    actionMask: list[np.int8] = GameMethods.getActionMask(agent, env.agents)
+                    actionMask: list[np.int8] = PlayerMethods.getActionMask(agent, env.agents)
                     opps = [a for a in env.agents if a.id != agent.id]
                     opps.sort(key= lambda a: (a.numCards, a.numCoins), reverse = True)
-                    encodedState = GameMethods.getOneHotEncodeState([agent, opps[0], opps[1], opps[2]])
+                    encodedState = PlayerMethods.getOneHotEncodeState([agent, opps[0], opps[1], opps[2]])
                     actionList = policyNet(encodedState)
                     actionList[~torch.tensor(actionMask, dtype=torch.bool)] = float('-inf')
                     actionList = F.softmax(actionList, dim=0)

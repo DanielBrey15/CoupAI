@@ -7,19 +7,19 @@ import random
 from typing import Optional
 from Services.PlayerMethods import *
 from Models.PolicyNetwork import PolicyNetwork
-
+import os
 
 class AIPlayerML(Player):
     def __init__(self, card1: Card, card2: Card, modelFile: str, id: int = 1, isTraining = False, name: str = "cg32"):
         super().__init__(id = id, name = name, card1 = card1, card2 =card2)
         self.isAI: bool = True
         self.isTraining = isTraining
-        self.modelFile: str = modelFile
-
+        self.modelFile = modelFile
         # Using one-hot encoding (3 values for each player's number of cards, 5 for each player's number of coins)
         # Number of coins can be 0, 1, 2, 3-6, or 7+ (Split based on what actions the player can do)
         self.model = PolicyNetwork(32, 13)
-        self.model.load_state_dict(torch.load("ModelFiles/Model1.pt", weights_only=True))
+        if os.path.isfile(modelFile):
+            self.model.load_state_dict(torch.load(modelFile, weights_only=True)) #"ModelFiles/Model1.pt"
 
     def makeMove2(self, players: list[Player], actionLog: list[Action]) -> MoveWithTarget:
         #Greedy: Gain coins until enough to coup/assassinate

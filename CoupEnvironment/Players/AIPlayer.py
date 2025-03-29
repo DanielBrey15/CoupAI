@@ -12,6 +12,8 @@ class AIPlayer(Player):
         super().__init__(id = id, name = name, card1 = card1, card2 =card2)
         self.isAI: bool = True
         self.isTraining = isTraining
+        self.model = None
+        self.modelFile = None
 
     def makeMove(self, players: list[Player], actionLog: list[Action]) -> MoveWithTarget:
         #Greedy: Gain coins until enough to coup/assassinate
