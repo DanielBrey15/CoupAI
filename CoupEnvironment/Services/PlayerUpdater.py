@@ -6,30 +6,36 @@ import torch
 import torch.optim as optim
 from torch.optim import adam
 
+"""
+PlayerUpdater is a service that provides functionality to update the models of the
+agents that are currently in training.
+
+This includes methods to update players after each game as well as store those models when
+the current round of training is completed.
+"""
 class PlayerUpdater:
     def __init__(self, agents: list[AIPlayer]):
-        self.playersTraining: list[int] = [agent.id for agent in agents if agent.isTraining]
-        self.playerModels: dict = {agent.id: agent.model for agent in agents if agent.isTraining}
-        self.playerOptimizers: dict[int, adam.Adam] = {agent.id: optim.Adam(self.playerModels[agent.id].parameters(), lr=1e-4) for agent in agents if agent.isTraining}
-        self.playerModelFiles: dict = {agent.id: agent.modelFile for agent in agents if agent.isTraining}
+        self.players_training: list[int] = [agent.id for agent in agents if agent.is_training]
+        self.player_models: dict = {agent.id: agent.model for agent in agents if agent.is_training}
+        self.player_optimizers: dict[int, adam.Adam] = {agent.id: optim.Adam(self.player_models[agent.id].parameters(), lr=1e-4) for agent in agents if agent.is_training}
+        self.player_model_files: dict = {agent.id: agent.model_file for agent in agents if agent.is_training}
         
-    def updatePlayers(self, moveLog: list[MoveLogEntry], playerIdsRanked: list[int]):
-        for agentId in self.playersTraining:
-            agentMoves = [a for a in moveLog if a.playerId == agentId]
-            agentFirstMove = agentMoves[0]
-            agentNumberOfKills = len([a for a in agentMoves if a.action in Constants.LISTOFKILLMOVES])
-            rewards = torch.tensor(GameMethods.computeDiscountedRewards(len(agentMoves)), dtype=torch.float32, device=agentFirstMove.actionProb.device) #, device=logActionProb.device
-            policyLoss = torch.stack([reward * action.actionProb for reward, action in zip(rewards, agentMoves)]).sum()
-            policLossKillCountConstant = 1 - agentNumberOfKills # Killing less than one card is punished, killing more than one is rewarded
-            policyMultiplierOverall = torch.tensor(Constants.POLICYLOSSMULTIPLERBYRANKDICTIONARY[4-playerIdsRanked[agentId]] + policLossKillCountConstant, dtype=torch.float32, device=policyLoss.device)
-            policyLoss = policyMultiplierOverall * policyLoss
+    def updatePlayers(self, move_log: list[MoveLogEntry], player_IDs_ranked: list[int]):
+        for agent_ID in self.players_training:
+            agent_moves = [a for a in move_log if a.player_id == agent_ID]
+            agent_first_move = agent_moves[0]
+            agent_number_of_kills = len([a for a in agent_moves if a.action in Constants.LIST_OF_KILL_MOVES])
+            rewards = torch.tensor(GameMethods.computeDiscountedRewards(len(agent_moves)), dtype=torch.float32, device=agent_first_move.action_prob.device) #, device=logActionProb.device
+            policy_loss = torch.stack([reward * action.action_prob for reward, action in zip(rewards, agent_moves)]).sum()
+            policy_loss_kill_count_constant = 1 - agent_number_of_kills # Killing less than one card is punished, killing more than one is rewarded
+            policy_multiplier_overall = torch.tensor(Constants.POLICY_LOSS_MULTIPLIER_BY_RANK_DICTIONARY[4-player_IDs_ranked[agent_ID]] + policy_loss_kill_count_constant, dtype=torch.float32, device=policy_loss.device)
+            policy_loss = policy_multiplier_overall * policy_loss
 
-            optimizer = self.playerOptimizers[agentId]
+            optimizer = self.player_optimizers[agent_ID]
             optimizer.zero_grad()
-            policyLoss.backward()
+            policy_loss.backward()
             optimizer.step()
 
     def storePlayerModels(self):
-        for agentId in self.playersTraining:
-            torch.save(self.playerModels[agentId].state_dict(), self.playerModelFiles[agentId])
-
+        for agent_ID in self.players_training:
+            torch.save(self.player_models[agent_ID].state_dict(), self.player_model_files[agent_ID])

@@ -1,26 +1,17 @@
-from Objects.MoveWithTarget import MoveWithTarget
-from Players.Player import Player
 from torch import Tensor
+from Objects.MoveWithTarget import MoveWithTarget
+from Objects.GameState import GameState
+from Objects.MoveLogEntry import MoveLogEntry
+from Players.Player import Player
 
-class GameState:
-    def __init__(self, currPlayer: Player, sortedOpps: list[Player]):
-        self.myCards = currPlayer.numCards
-        self.myCoins = currPlayer.numCoins
-        self.opp1Cards = sortedOpps[0].numCards
-        self.opp1Coins = sortedOpps[0].numCoins
-        self.opp2Cards = sortedOpps[1].numCards
-        self.opp2Coins = sortedOpps[1].numCoins
-        self.opp3Cards = sortedOpps[2].numCards
-        self.opp3Coins = sortedOpps[2].numCoins
+"""
+MoveLogger is a service that logs all of the moves taken in a game, which can be used for
+training player models or making game decisions.
 
-class MoveLogEntry:
-    def __init__(self, currPlayerId: int, gameState: GameState, action: MoveWithTarget, actionProb: Tensor):
-        self.playerId = currPlayerId
-        self.gameState = gameState
-        self.action = action
-        self.actionProb = actionProb
-
+For example, players may not want to steal from a player who most likely can block their stealing
+action, or they may want to reward themselves for killing more opponent's cards.
+"""
 class MoveLogger:
-    def logMove(currPlayer: Player, sortedOpps: list[Player], action: MoveWithTarget, actionProb: Tensor, moveLog: list[MoveLogEntry]) -> None:
-        gameState = GameState(currPlayer, sortedOpps)
-        moveLog.append(MoveLogEntry(currPlayer.id, gameState, action, actionProb))
+    def logMove(curr_player: Player, sorted_opps: list[Player], action: MoveWithTarget, action_prob: Tensor, move_log: list[MoveLogEntry]) -> None:
+        game_state = GameState(curr_player, sorted_opps)
+        move_log.append(MoveLogEntry(curr_player.id, game_state, action, action_prob))

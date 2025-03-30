@@ -9,44 +9,48 @@ from Objects.Action import *
 from typing import Tuple
 from Objects.GameLog import GameLog
 
-class GameMethods:
-    # Class containing various methods used within the Coup game.
+"""
+GameMethods is a service that provides methods to update the Coup game.
 
+Along with others, this includes methods used to check if anyone calls out an action,
+blocks an action, and setting up the game
+"""
+class GameMethods:
     def isSuccessfullyCalledOut(
         self,
         card: Card,
-        playerMoving: Player,
+        player_moving: Player,
         players: list[Player],
         deck: list[Card],
         setDeck,
-        moveLog: list[GameLog]) -> bool:
+        move_log: list[GameLog]) -> bool:
 
-        isCalledOut = False
-        playerCallingOut = None
+        is_called_out = False
+        player_calling_out = None
         for player in players:
-            if(player.getName() != playerMoving.getName()):
+            if(player.getName() != player_moving.getName()):
                 if(player.callsActionOut()):
-                    isCalledOut = True
-                    playerCallingOut = player
+                    is_called_out = True
+                    player_calling_out = player
                     break
-        if not isCalledOut:
+        if not is_called_out:
             return False
         else:
-            haveCard = card in playerMoving.getCards()
-            if haveCard:
-                playerCallingOut.loseCard()
-                tempDeck = deck
+            have_card = card in player_moving.getCards()
+            if have_card:
+                player_calling_out.loseCard()
+                temp_deck = deck
                 
-                # Add playerMoving's card to deck and shuffle before handing them card back
-                tempDeck.append(card)
-                random.shuffle(tempDeck)
+                # Add player_moving's card to deck and shuffle before handing them card back
+                temp_deck.append(card)
+                random.shuffle(temp_deck)
 
-                cardDrawn: Card = tempDeck.pop()
-                setDeck(tempDeck)
-                playerMoving.switchCard(cardSwitchedOut = card, cardGained = cardDrawn)
+                cards_drawn: Card = temp_deck.pop()
+                setDeck(temp_deck)
+                player_moving.switchCard(card_switched_out = card, card_gained = cards_drawn)
                 return False
             else:
-                playerMoving.loseCard()
+                player_moving.loseCard()
                 return True
         
     def resolveMove(self,
@@ -57,37 +61,37 @@ class GameMethods:
         players: list[Player],
         deck: list[Card],
         setDeck,
-        moveLog: list[GameLog]) -> None:
+        move_log: list[GameLog]) -> None:
 
         if move == Move.INCOME:
             player.updateNumCoins(1)
-        elif move == Move.FOREIGNAID:
-            if not isBlocked(playerMoving = player, move = Move.FOREIGNAID, potentialBlockingCard = Card.DUKE):
+        elif move == Move.FOREIGN_AID:
+            if not isBlocked(player_moving = player, move = Move.FOREIGN_AID, potential_blocking_card = Card.DUKE):
                 player.updateNumCoins(2)
         elif move == Move.TAX:
-            if not self.isSuccessfullyCalledOut(self, card=Card.DUKE, playerMoving=player, players=players, deck=deck, setDeck=setDeck, moveLog=moveLog):
+            if not self.isSuccessfullyCalledOut(self, card=Card.DUKE, player_moving=player, players=players, deck=deck, setDeck=setDeck, move_log=move_log):
                 player.updateNumCoins(3)
         elif move == Move.EXCHANGE:
-            if not self.isSuccessfullyCalledOut(self, card=Card.AMBASSADOR, playerMoving=player, players=players, deck=deck, setDeck=setDeck, moveLog=moveLog):
+            if not self.isSuccessfullyCalledOut(self, card=Card.AMBASSADOR, player_moving=player, players=players, deck=deck, setDeck=setDeck, move_log=move_log):
                 exchangeCards: list[Card] = deck[:2]
                 cardsReturned: list[Card] = player.resolveExchange(exchangeCards, self)
-                deckAfterExchanging: list[Card] = deck[2:]
-                deckAfterExchanging.extend(cardsReturned)
-                random.shuffle(deckAfterExchanging)
-                setDeck(deckAfterExchanging)
+                deck_after_exchanging: list[Card] = deck[2:]
+                deck_after_exchanging.extend(cardsReturned)
+                random.shuffle(deck_after_exchanging)
+                setDeck(deck_after_exchanging)
         elif move == Move.COUP:
             player.updateNumCoins(-7)
             target.loseCard()
         elif move == Move.STEAL:
-            if not self.isSuccessfullyCalledOut(self, card=Card.CAPTAIN, playerMoving=player, players=players, deck=deck, setDeck=setDeck, moveLog=moveLog):
-                if not isBlocked(playerMoving = player, move = Move.STEAL, target = target):
-                    coinsStolen = min(2, target.getNumCoins())
-                    player.updateNumCoins(coinsStolen)
-                    target.updateNumCoins(-coinsStolen)
+            if not self.isSuccessfullyCalledOut(self, card=Card.CAPTAIN, player_moving=player, players=players, deck=deck, setDeck=setDeck, move_log=move_log):
+                if not isBlocked(player_moving = player, move = Move.STEAL, target = target):
+                    coins_stolen = min(2, target.getNumCoins())
+                    player.updateNumCoins(coins_stolen)
+                    target.updateNumCoins(-coins_stolen)
         elif move == Move.ASSASSINATE:
             player.updateNumCoins(-3)
-            if not self.isSuccessfullyCalledOut(self, card=Card.ASSASSIN, playerMoving=player, players=players, deck=deck, setDeck=setDeck, moveLog=moveLog):
-                if not isBlocked(playerMoving = player, move = Move.ASSASSINATE, target = target, potentialBlockingCard = Card.CONTESSA):
+            if not self.isSuccessfullyCalledOut(self, card=Card.ASSASSIN, player_moving=player, players=players, deck=deck, setDeck=setDeck, move_log=move_log):
+                if not isBlocked(player_moving = player, move = Move.ASSASSINATE, target = target, potential_blocking_card = Card.CONTESSA):
                     target.loseCard()
         else:
             print("Shouldn't hit here")
@@ -118,11 +122,11 @@ class GameMethods:
         for card in Card:
             deck.extend([card, card, card])
         random.shuffle(deck)
-        pCards, deck = deck[:2], deck[2:]
-        players.append(AIPlayerML(card1 = pCards[0], card2 = pCards[1], modelFile="ModelFiles/Model2.pt", isTraining = True, id = 0, name = "p0"))
+        p_cards, deck = deck[:2], deck[2:]
+        players.append(AIPlayerML(card1 = p_cards[0], card2 = p_cards[1], model_file="ModelFiles/Model2.pt", is_training = True, id = 0, name = "p0"))
         for p in range(1,4):
-            pCards, deck = deck[:2], deck[2:]
-            players.append(AIPlayer(card1 = pCards[0], card2 = pCards[1], id = p, name = f"p{p}"))
+            p_cards, deck = deck[:2], deck[2:]
+            players.append(AIPlayer(card1 = p_cards[0], card2 = p_cards[1], id = p, name = f"p{p}"))
         return deck, players
     
     def resetDeckAndPlayers(players: list[Player]):
@@ -131,34 +135,34 @@ class GameMethods:
             deck.extend([card, card, card])
         random.shuffle(deck)
         for p in players:
-            pCards, deck = deck[:2], deck[2:]
-            p.resetPlayer(pCards[0], pCards[1])
+            p_cards, deck = deck[:2], deck[2:]
+            p.resetPlayer(p_cards[0], p_cards[1])
         return deck
 
     def getDeck(self) -> list[Card]:
         return self.deck
 
-    def computeDiscountedRewards(numMoves, gamma=0.99):
-        discountedRewards = []
-        for r in reversed(range(numMoves)):
-            discountedRewards.append(gamma**r)
-        return discountedRewards
+    def computeDiscountedRewards(num_moves, gamma=0.99):
+        discounted_rewards = []
+        for r in reversed(range(num_moves)):
+            discounted_rewards.append(gamma**r)
+        return discounted_rewards
 
-    def splitMoveAndTarget(moveWithTarget: MoveWithTarget, oppDict: dict[int, int]) -> Tuple[Move, (int | None)]:
-        targetDict = {
+    def splitMoveAndTarget(move_with_target: MoveWithTarget, opp_dict: dict[int, int]) -> Tuple[Move, (int | None)]:
+        target_dict = {
             MoveWithTarget.INCOME: (Move.INCOME, None),
-            MoveWithTarget.FOREIGNAID: (Move.FOREIGNAID, None),
-            MoveWithTarget.COUPPLAYER1: (Move.COUP, 0),
-            MoveWithTarget.COUPPLAYER2: (Move.COUP, 1),
-            MoveWithTarget.COUPPLAYER3: (Move.COUP, 2),
+            MoveWithTarget.FOREIGN_AID: (Move.FOREIGN_AID, None),
+            MoveWithTarget.COUP_PLAYER_1: (Move.COUP, 0),
+            MoveWithTarget.COUP_PLAYER_2: (Move.COUP, 1),
+            MoveWithTarget.COUP_PLAYER_3: (Move.COUP, 2),
             MoveWithTarget.TAX: (Move.TAX, None),
-            MoveWithTarget.STEALPLAYER1: (Move.STEAL, 0),
-            MoveWithTarget.STEALPLAYER2: (Move.STEAL, 1),
-            MoveWithTarget.STEALPLAYER3: (Move.STEAL, 2),
-            MoveWithTarget.ASSASSINATEPLAYER1: (Move.ASSASSINATE, 0),
-            MoveWithTarget.ASSASSINATEPLAYER2: (Move.ASSASSINATE, 1),
-            MoveWithTarget.ASSASSINATEPLAYER3: (Move.ASSASSINATE, 2),
+            MoveWithTarget.STEAL_PLAYER_1: (Move.STEAL, 0),
+            MoveWithTarget.STEAL_PLAYER_2: (Move.STEAL, 1),
+            MoveWithTarget.STEAL_PLAYER_3: (Move.STEAL, 2),
+            MoveWithTarget.ASSASSINATE_PLAYER_1: (Move.ASSASSINATE, 0),
+            MoveWithTarget.ASSASSINATE_PLAYER_2: (Move.ASSASSINATE, 1),
+            MoveWithTarget.ASSASSINATE_PLAYER_3: (Move.ASSASSINATE, 2),
             MoveWithTarget.EXCHANGE: (Move.EXCHANGE, None)
         }
-        move, targetOppRank = targetDict[moveWithTarget]
-        return (move, None) if targetOppRank == None else (move, oppDict[targetOppRank])
+        move, target_opp_rank = target_dict[move_with_target]
+        return (move, None) if target_opp_rank == None else (move, opp_dict[target_opp_rank])

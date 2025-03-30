@@ -6,6 +6,8 @@ Rules: https://github.com/DanielBrey15/CoupAI/blob/main/CoupRules.pdf (Rules als
 
 Initially I created functionality to play Coup and developed various AI players with different heuristics and strategies (These players and their game setup ca be found in the History directory). Now, I am currently designing and iterating on AI players that use machine learning to make their game decisions (CoupEnvironment directory).
 
+Check out CoupEnvironment/CoupEnvironment.py to get started!
+
 ### Important files in the CoupEnvironment directory:
 * CoupEnvironment.py: The main script run - It creates the game and training environment, and teaches one of the players how to play over thousands of games.
 * Services/GameMethods.py: The module containing many helper methods for CoupEnvironment.py.
