@@ -74,7 +74,6 @@ class AIPlayer(Player):
     def resolveExchange(self, exchangeCards: list[Card], game) -> list[Card]:
         cardsInHand = self.getCards()
         cardsInHand.extend(exchangeCards)
-        print(f"Cards in hand: {', '.join(str(card) for card in cardsInHand)}")
         returnedCards = cardsInHand
         cardsKept = self.chooseExchangeCards(cardsInHand, game)
         for card in cardsKept:
@@ -82,7 +81,6 @@ class AIPlayer(Player):
         if len(returnedCards) != 2:
             raise ValueError("Should return 2 cards")
         else:
-            print(f"{self.getName()} keeps {', '.join(str(card) for card in cardsKept)}")
             self.cards = cardsKept
             return returnedCards
 
@@ -104,4 +102,3 @@ class AIPlayer(Player):
     
     def callsActionOut(self) -> bool:
         return False
-        #return random.random() < 0.05

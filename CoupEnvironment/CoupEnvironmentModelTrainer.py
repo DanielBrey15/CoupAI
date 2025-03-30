@@ -2,10 +2,9 @@ import numpy as np
 from gym import spaces
 from Players.Player import Player
 from Objects.Card import Card
-from Objects.Move import Move
 from Objects.MoveWithTarget import MoveWithTarget
 from Objects.Action import *
-from typing import Optional, Tuple
+from typing import Optional
 from Services.GameMethods import *
 from Services.MoveLogger import MoveLogger, MoveLogEntry
 from pettingzoo import AECEnv
@@ -20,18 +19,18 @@ from Constants import Constants
 from Models.PolicyNetwork import PolicyNetwork
 from Services.PlayerMethods import PlayerMethods
 
+"""
+CoupEnvironmentModelTrainer.py is a script used to run Coup and train a deep learning model.
+Given a number, it plays that many games of Coup between 4 players (Players manually added in the GameMethods service).
+It also updates the model bewtween games to hopefully strengthen the trained player.
+
+The first player is an agent trained on a deep learning model while the other 3 players use
+heuristics, so CoupEnvironment.py plots the first player's win percentage over time to indicate the model's growth.
+
+Currently, I am using CoupEnvironment.py since it is more flexible to train multiple players.
+Please check out that file for the most up to date work.
+"""
 class CoupEnvironmentModelTrainer(AECEnv):
-    metadata = {
-        "render_modes": ["human"],
-        "name": "coupEnvironmentModelTrainer",
-    }
-
-    def __str__(self):
-        gameStatus = "\nGame Status: [\n"
-        for player in self.agents:
-            gameStatus += str(player) + "\n"
-        return gameStatus[:-1] + " ]"
-
     def __init__(self):
         super().__init__()
         deck, agents = GameMethods.createDeckAndPlayers()
@@ -46,6 +45,12 @@ class CoupEnvironmentModelTrainer(AECEnv):
 
         self.action_spaces = {agent.id: spaces.Discrete(13) for agent in self.agents} # [Income, Foreign Aid, Coup Opp A, Coup Opp B, Coup Opp C, Tax, Steal Opp A, Steal Opp B, Steal Opp C, Assassinate Opp A, Assassinate Opp B, Assassinate Opp C, Exchange]
         self.observation_spaces = {agent.id: spaces.Discrete(1) for agent in self.agents}
+
+    def __str__(self):
+        gameStatus = "\nGame Status: [\n"
+        for player in self.agents:
+            gameStatus += str(player) + "\n"
+        return gameStatus[:-1] + " ]"
 
     def reset(self, seed=32, options=None) -> None:
         random.seed(seed)
@@ -134,13 +139,18 @@ class CoupEnvironmentModelTrainer(AECEnv):
 
 if __name__ == "__main__":
     env = CoupEnvironmentModelTrainer()
+
     # Using one-hot encoding (3 values for each player's number of cards, 5 for each player's number of coins)
     # Number of coins can be 0, 1, 2, 3-6, or 7+ (Split based on what actions the player can do)
     policyNet = PolicyNetwork(32, 13)
+
     policyNet.load_state_dict(torch.load("ModelFiles/Model1.pt", weights_only=True))
     optimizer = optim.Adam(policyNet.parameters(), lr=1e-4)
+
+    # Keeping track of win percentage to visualize model's growth
     currWins: int = 0
     winPercentageOverTime: list[float] = []
+
     numGames = 20
     for i in range(numGames):
         env.reset()

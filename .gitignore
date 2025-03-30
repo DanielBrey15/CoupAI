@@ -169,3 +169,8 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Local virtual environments
+.DS_Store
+venv11/
+tensorflow_env/

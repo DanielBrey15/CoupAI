@@ -12,7 +12,7 @@ Initially I created functionality to play Coup and developed various AI players 
 * Players directory: Directory containing different AI agent classes. In the History directory, these each had different heuristics used to make decisions. In the current setup, these player classes will either have their own models or take in stored models as inputs to play Coup.
 
 ### Progress so far
-![Chart showing Coup AI's win percentage over 2500 games (4 player game)](Images/CoupAIWinPercentageVisual.png)
+![Chart showing Coup AI's win percentage over 5000 games (4 player game)](Images/CoupAIWinPercentageVisual.png)
 The Coup AI has demonstrated it can learn and, while skipping over some of the rules of the actual game, win more than other agents that use strong heuristics.
 
 ## Next steps
@@ -35,5 +35,4 @@ The Coup AI has demonstrated it can learn and, while skipping over some of the r
 ### Program structure
 
 * Take advantage of all of AECEnv's functionality
-* Store reinforcement model after training
 * Using work done in the History Repository, bring back the ActionLogger that saved all of the different actions completed in a game (including blocking, calling out, etc). This will be needed for feature engineering in the "Strengthen move making model" section

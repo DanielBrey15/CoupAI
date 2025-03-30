@@ -1,30 +1,33 @@
-from gym import spaces
-from Players.Player import Player
-from Objects.Card import Card
-from Objects.MoveWithTarget import MoveWithTarget
-from Objects.Action import *
+import sys
+import random
 from typing import Optional
-from Services.GameMethods import *
-from Services.MoveLogger import MoveLogger, MoveLogEntry
-from pettingzoo import AECEnv
-import torch
-from math import log
+from progress.bar import Bar
 import matplotlib.pyplot as plt
+from gym import spaces
+from pettingzoo import AECEnv
+from Objects.Card import Card
 from Objects.GameLog import GameLog
+from Objects.MoveWithTarget import MoveWithTarget
+from Players.Player import Player
+from Services.GameMethods import GameMethods
+from Services.MoveLogger import MoveLogger, MoveLogEntry
 from Services.PlayerUpdater import PlayerUpdater
 
+"""
+CoupEnvironment.py is my main file to run Coup. Given a number, it plays that many games of Coup
+between 4 players (Players manually added in the GameMethods service).
+
+CoupEnvironment.py uses the PlayerUpdater service to update the Coup players after each game
+(Note: Only the players that are using actual models are updated. Those using heuristics are
+unaffected).
+
+Currently, the first player is an agent trained on a deep learning model while the other 3 
+players use heuristics, so CoupEnvironment.py plots the first player's win percentage over
+time to indicate the model's growth.
+
+Please run "python3 CoupEnvironment.py <Number of games>"
+"""
 class CoupEnvironment(AECEnv):
-    metadata = {
-        "render_modes": ["human"],
-        "name": "coupEnvironment",
-    }
-
-    def __str__(self):
-        gameStatus = "\nGame Status: [\n"
-        for player in self.agents:
-            gameStatus += str(player) + "\n"
-        return gameStatus[:-1] + " ]"
-
     def __init__(self):
         super().__init__()
         deck, agents = GameMethods.createDeckAndPlayers()
@@ -41,8 +44,13 @@ class CoupEnvironment(AECEnv):
         self.action_spaces = {agent.id: spaces.Discrete(13) for agent in self.agents} # [Income, Foreign Aid, Coup Opp A, Coup Opp B, Coup Opp C, Tax, Steal Opp A, Steal Opp B, Steal Opp C, Assassinate Opp A, Assassinate Opp B, Assassinate Opp C, Exchange]
         self.observation_spaces = {agent.id: spaces.Discrete(1) for agent in self.agents}
 
+    def __str__(self):
+        gameStatus = "\nGame Status: [\n"
+        for player in self.agents:
+            gameStatus += str(player) + "\n"
+        return gameStatus[:-1] + " ]"
+
     def reset(self, seed=32) -> None:
-        random.seed(seed)
         deck = GameMethods.resetDeckAndPlayers(self.agents)
         self.deck: list[Card] = deck
         self.agent_selection = self.agents[0]
@@ -53,18 +61,18 @@ class CoupEnvironment(AECEnv):
 
     def step(self, action, agent, actionProb) -> None:
         opps = [a for a in self.agents if a.id != agent.id]
-        opps.sort(key= lambda agent: (agent.numCards, agent.numCoins), reverse = True)
+        opps.sort(key= lambda player: (player.numCards, player.numCoins), reverse = True)
         sortedOppIds = [opp.id for opp in opps]
         oppRankToIdDictionary = {i: sortedOppIds[i] for i in range(3)}
         moveWithTarget = MoveWithTarget(action)
         move, targetId = GameMethods.splitMoveAndTarget(moveWithTarget, oppRankToIdDictionary)
-        target = None if targetId == None else [agent for agent in self.agents if agent.id == targetId][0]
+        target = None if targetId is None else next(a for a in self.agents if a.id == targetId)
         MoveLogger.logMove(
             currPlayer = agent,
             sortedOpps = opps,
             action = moveWithTarget,
             actionProb = actionProb,
-            moveLog = self.moveLog 
+            moveLog = self.moveLog
         )
         GameMethods.resolveMove(GameMethods, agent, move, target, self.isBlocked, self.agents, self.deck, self.setDeck, moveLog = env.moveLog)
 
@@ -74,24 +82,22 @@ class CoupEnvironment(AECEnv):
         while self.dones[nextAgentId]:
             nextAgentId = (nextAgentId + 1) % self.num_agents
         self.agent_selection = self.agents[nextAgentId]
-        return
-    
+
     def isBlocked(self, playerMoving, move, target = None, potentialBlockingCard = None) -> bool:
         players = self.agents
         blockingPlayer: Optional[Player] = None
         cardAIBlocksWith: Optional[Card] = None
         for player in players:
             cardAIBlocksWith = player.AIBlock(playerMoving, move, target)
-            if(cardAIBlocksWith):
+            if cardAIBlocksWith:
                 blockingPlayer = player
                 break
         if blockingPlayer:
-            print(f"\n{blockingPlayer.name} blocks with {cardAIBlocksWith}")
             if not GameMethods.isSuccessfullyCalledOut(GameMethods, card=cardAIBlocksWith, playerMoving=blockingPlayer, players=self.agents, deck=self.deck, setDeck=self.setDeck, moveLog=self.moveLog):
                 return True
             return False
         return False
-    
+
     def setPlayers(self, newPlayers) -> None:
         self.players = newPlayers
 
@@ -104,28 +110,36 @@ class CoupEnvironment(AECEnv):
 if __name__ == "__main__":
     # Note: Some things are unecessary in this file (such as the action probabilities),
     # but I am going to be using them in the near future so it doesn't make sense to remove it yet.
+    if len(sys.argv) != 2:
+        raise ValueError("Usage: python3 CoupEnvironment.py <numberOfGames>")
+    numGames = int(sys.argv[1])
+
     env = CoupEnvironment()
     playerUpdater = PlayerUpdater(env.agents)
+
+    # Keeping track of win percentage to visualize model's growth
     currWins: int = 0
     winPercentageOverTime: list[float] = []
-    numGames = 200
+
+    random.seed(32)
+    bar = Bar('Completing games', max = numGames)
+
     for i in range(numGames):
         env.reset()
         for agent in env.agent_iter():
-            reward, done, info = env.rewards[agent.id], env.dones[agent.id], {}
-            if done:
+            if env.dones[agent.id]:
                 action = None
                 logActionProb = None
             else:
                 action, logActionProb = agent.makeMove(env.agents, env.moveLog)
 
             env.step(action, agent, logActionProb)
-            env.render()
 
+            # Check if any players lost their last card and if that caused the end of the game
             newDeadPlayerIds = [p.id for p in env.agents if p.numCards == 0 and p.id not in env.playerIdsRanked]
-            if(len(newDeadPlayerIds) > 0):
+            if len(newDeadPlayerIds) > 0:
                 env.playerIdsRanked.extend(newDeadPlayerIds)
-            if len(env.playerIdsRanked) == 3:
+            if len(env.playerIdsRanked) == 3: # One player left - Game is over
                 playerIdAlive = [p.id for p in env.agents if p.numCards > 0]
                 env.playerIdsRanked.append(playerIdAlive)
                 break
@@ -135,7 +149,9 @@ if __name__ == "__main__":
             currWins += 1
         winPercentageOverTime.append(currWins/(i+1))
 
+        bar.next()
     playerUpdater.storePlayerModels()
+    bar.finish()
     env.close()
 
     plt.plot(range(100,numGames), winPercentageOverTime[100:], color='blue', marker='o', linestyle='-')

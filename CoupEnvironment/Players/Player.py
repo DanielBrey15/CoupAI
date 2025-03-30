@@ -46,14 +46,12 @@ class Player:
     def resolveExchange(self, exchangeCards: list[Card], game) -> list[Card]:
         cardsInHand = self.getCards()
         cardsInHand.extend(exchangeCards)
-        print(f"Cards in hand: {', '.join(str(card) for card in cardsInHand)}")
         returnedCard1 = Card[wrapInput("First card to give back: ").upper()]
         returnedCard2 = Card[wrapInput("Second Card to give back: ").upper()]
         if(self.areReturnedCardsValid(returnedCard1, returnedCard2, cardsInHand)):
             cardsKept = cardsInHand
             cardsKept.remove(returnedCard1)
             cardsKept.remove(returnedCard2)
-            print(f"{self.getName()} keeps {', '.join(str(card) for card in cardsKept)}")
             self.cards = cardsKept
             return [returnedCard1, returnedCard2]
         else:
@@ -70,20 +68,17 @@ class Player:
             return False
         
     def loseCard(self) -> None:
-        print(f"{self.name} loses card")
         self.numCards -= 1
         cardToDie = self.chooseCardToDie()
-        print(cardToDie)
         self.cards.remove(cardToDie)
         self.deadCards.append(cardToDie)
-        print(f"{self.name} chooses {cardToDie} to die")
 
     def chooseCardToDie(self) -> None:
         cardLost = Card[wrapInput("Card lost: ").upper()]
         if cardLost in self.cards:
             return cardLost
         else:
-            print("invalid choice")
+            print("Invalid choice")
             self.chooseCardToDie()
         
     def switchCard(self, cardSwitchedOut: Card, cardGained: Card):

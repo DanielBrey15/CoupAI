@@ -9,8 +9,9 @@ from Objects.Action import *
 from typing import Tuple
 from Objects.GameLog import GameLog
 
+class GameMethods:
+    # Class containing various methods used within the Coup game.
 
-class GameMethods:  
     def isSuccessfullyCalledOut(
         self,
         card: Card,
@@ -41,7 +42,6 @@ class GameMethods:
                 random.shuffle(tempDeck)
 
                 cardDrawn: Card = tempDeck.pop()
-                print(f"New card gained: {str(cardDrawn)}")
                 setDeck(tempDeck)
                 playerMoving.switchCard(cardSwitchedOut = card, cardGained = cardDrawn)
                 return False
@@ -69,7 +69,6 @@ class GameMethods:
                 player.updateNumCoins(3)
         elif move == Move.EXCHANGE:
             if not self.isSuccessfullyCalledOut(self, card=Card.AMBASSADOR, playerMoving=player, players=players, deck=deck, setDeck=setDeck, moveLog=moveLog):
-                print(f"{player.getName()} exchanges!")
                 exchangeCards: list[Card] = deck[:2]
                 cardsReturned: list[Card] = player.resolveExchange(exchangeCards, self)
                 deckAfterExchanging: list[Card] = deck[2:]
@@ -111,7 +110,6 @@ class GameMethods:
             for card in player.getCards():
                 deck.remove(card)
         random.shuffle(deck)
-        print(f"Deck: {', '.join(str(card) for card in deck)}")
         return deck
     
     def createDeckAndPlayers():
@@ -121,7 +119,7 @@ class GameMethods:
             deck.extend([card, card, card])
         random.shuffle(deck)
         pCards, deck = deck[:2], deck[2:]
-        players.append(AIPlayerML(card1 = pCards[0], card2 = pCards[1], modelFile="ModelFiles/Model3.pt", isTraining = True, id = 0, name = "p0")) # Separated this for when we use a different class for ML player 0 
+        players.append(AIPlayerML(card1 = pCards[0], card2 = pCards[1], modelFile="ModelFiles/Model2.pt", isTraining = True, id = 0, name = "p0"))
         for p in range(1,4):
             pCards, deck = deck[:2], deck[2:]
             players.append(AIPlayer(card1 = pCards[0], card2 = pCards[1], id = p, name = f"p{p}"))
