@@ -20,10 +20,10 @@ class Constants:
     ACTION_MASK_FOR_STATE_TO_WIN_GAME = [1,1,1,0,0,1,1,0,0,1,0,0,1]
 
     POLICY_LOSS_MULTIPLIER_BY_RANK_DICTIONARY = {
-        1: -2,
-        2: -1,
-        3: 2,
-        4: 3
+        1: -20,
+        2: -10,
+        3: 20,
+        4: 30
     }
 
     LIST_OF_KILL_MOVES= [

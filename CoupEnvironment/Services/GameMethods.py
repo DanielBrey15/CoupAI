@@ -62,13 +62,17 @@ class GameMethods:
         players: list[Player],
         deck: list[Card],
         setDeck,
-        move_log: list[GameLog]) -> None:
+        move_log: list[GameLog]) -> int:
+
+        loss = 1
 
         if move == Move.INCOME:
             player.updateNumCoins(1)
         elif move == Move.FOREIGN_AID:
             if not isBlocked(player_moving = player, move = Move.FOREIGN_AID, potential_blocking_card = Card.DUKE):
                 player.updateNumCoins(2)
+            else:
+                loss += 10
         elif move == Move.TAX:
             if not self.isSuccessfullyCalledOut(self, card=Card.DUKE, player_moving=player, players=players, deck=deck, setDeck=setDeck, move_log=move_log):
                 player.updateNumCoins(3)
@@ -89,14 +93,18 @@ class GameMethods:
                     coins_stolen = min(2, target.getNumCoins())
                     player.updateNumCoins(coins_stolen)
                     target.updateNumCoins(-coins_stolen)
+                else:
+                    loss += 10
         elif move == Move.ASSASSINATE:
             player.updateNumCoins(-3)
             if not self.isSuccessfullyCalledOut(self, card=Card.ASSASSIN, player_moving=player, players=players, deck=deck, setDeck=setDeck, move_log=move_log):
                 if not isBlocked(player_moving = player, move = Move.ASSASSINATE, target = target, potential_blocking_card = Card.CONTESSA):
                     target.loseCard()
+                else:
+                    loss += 10
         else:
             print("Shouldn't hit here")
-        return
+        return loss
     
     def getPlayerByName(self, name: str) -> Player:
         for player in self.players:
@@ -124,7 +132,7 @@ class GameMethods:
             deck.extend([card, card, card])
         random.shuffle(deck)
         p_cards, deck = deck[:2], deck[2:]
-        players.append(AIPlayerML(card1 = p_cards[0], card2 = p_cards[1], model_file="ModelFiles/Model3.pt", is_training = True, id = 0, name = "p0"))
+        players.append(AIPlayerML(card1 = p_cards[0], card2 = p_cards[1], model_file="ModelFiles/Model4.pt", is_training = True, id = 0, name = "p0"))
         for p in range(1,4):
             p_cards, deck = deck[:2], deck[2:]
             players.append(AIPlayer(card1 = p_cards[0], card2 = p_cards[1], id = p, name = f"p{p}"))

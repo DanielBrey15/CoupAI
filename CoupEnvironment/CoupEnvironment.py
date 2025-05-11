@@ -77,8 +77,8 @@ class CoupEnvironment(AECEnv):
             action_prob = action_prob,
             move_log = self.move_log
         )
-        GameMethods.resolveMove(GameMethods, agent, move, target, self.isBlocked, self.agents, self.deck, self.setDeck, move_log = env.move_log)
-        MoveLogger.updatePreviousReward(self.move_log, 1)
+        loss = GameMethods.resolveMove(GameMethods, agent, move, target, self.isBlocked, self.agents, self.deck, self.setDeck, move_log = env.move_log)
+        MoveLogger.updatePreviousReward(self.move_log, loss)
 
         env.dones = [agent.num_cards == 0 for agent in env.agents]
 
@@ -156,6 +156,8 @@ if __name__ == "__main__":
                 playerIdAlive = [p.id for p in env.agents if p.num_cards > 0][0]
                 env.player_ids_ranked.append(playerIdAlive)
                 break
+            #print(f"{agent.id} move: {action}")
+            #print(env)
         playerUpdater.updatePlayers(env.move_log, env.player_ids_ranked)
 
         if env.agents[0].num_cards > 0:
