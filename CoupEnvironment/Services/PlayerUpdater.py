@@ -23,9 +23,9 @@ class PlayerUpdater:
     def updatePlayers(self, move_log: list[MoveLogEntry], player_IDs_ranked: list[int]):
         for agent_ID in self.players_training:
             agent_moves = [a for a in move_log if a.player_id == agent_ID]
-            agent_first_move = agent_moves[0]
+            agent_first_move = agent_moves[0] # Remove later -- May not need it now that rewards were created throughout
             agent_number_of_kills = len([a for a in agent_moves if a.action in Constants.LIST_OF_KILL_MOVES])
-            rewards = torch.tensor(GameMethods.computeDiscountedRewards(len(agent_moves)), dtype=torch.float32, device=agent_first_move.action_prob.device) #, device=logActionProb.device
+            rewards = torch.tensor(GameMethods.computeDiscountedRewards(agent_moves), dtype=torch.float32, device=agent_first_move.action_prob.device) #, device=logActionProb.device
             policy_loss = torch.stack([reward * action.action_prob for reward, action in zip(rewards, agent_moves)]).sum()
             policy_loss_kill_count_constant = 1 - agent_number_of_kills # Killing less than one card is punished, killing more than one is rewarded
             policy_multiplier_overall = torch.tensor(Constants.POLICY_LOSS_MULTIPLIER_BY_RANK_DICTIONARY[4-player_IDs_ranked[agent_ID]] + policy_loss_kill_count_constant, dtype=torch.float32, device=policy_loss.device)

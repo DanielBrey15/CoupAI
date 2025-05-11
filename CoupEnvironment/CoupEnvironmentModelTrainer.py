@@ -187,7 +187,7 @@ if __name__ == "__main__":
         p0_moves = [a for a in env.move_log if a.playerId == 0]
         p0_number_of_kills = len([a for a in p0_moves if a.action in Constants.LIST_OF_KILL_MOVES])
         
-        rewards = torch.tensor(GameMethods.computeDiscountedRewards(len(p0_moves)), dtype=torch.float32, device=log_action_prob.device)
+        rewards = torch.tensor(GameMethods.computeDiscountedRewardsOLD(len(p0_moves)), dtype=torch.float32, device=log_action_prob.device)
         policy_loss = torch.stack([reward * action.actionProb for reward, action in zip(rewards, p0_moves)]).sum()
         policLossKillCountConstant = 1 - p0_number_of_kills # Killing less than one card is punished, killing more than one is rewarded
         

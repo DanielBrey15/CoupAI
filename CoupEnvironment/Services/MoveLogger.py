@@ -15,3 +15,6 @@ class MoveLogger:
     def logMove(curr_player: Player, sorted_opps: list[Player], action: MoveWithTarget, action_prob: Tensor, move_log: list[MoveLogEntry]) -> None:
         game_state = GameState(curr_player, sorted_opps)
         move_log.append(MoveLogEntry(curr_player.id, game_state, action, action_prob))
+
+    def updatePreviousReward(move_log: list[MoveLogEntry], _reward: float):
+        move_log[-1].reward = _reward

@@ -8,3 +8,4 @@ class MoveLogEntry:
         self.game_state = game_state
         self.action = action
         self.action_prob = action_prob
+        self.reward = 1

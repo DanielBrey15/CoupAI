@@ -25,6 +25,7 @@ class AIPlayer(Player):
 
     def makeMove(self, players: list[Player], action_log: list[Action]) -> MoveWithTarget:
         #Greedy: Gain coins until enough to coup/assassinate
+        num_assassination_attempts = len([m for m in action_log if m.player_id == self.id and m.action in [MoveWithTarget.ASSASSINATE_PLAYER_1, MoveWithTarget.ASSASSINATE_PLAYER_2, MoveWithTarget.ASSASSINATE_PLAYER_3]])
         if self.num_coins >= 10:
             num_alive_opps = len([p for p in players if p.id != self.id and p.num_cards > 0])
             if num_alive_opps == 1:
@@ -32,7 +33,7 @@ class AIPlayer(Player):
             elif num_alive_opps == 2:
                 return random.choice([MoveWithTarget.COUP_PLAYER_1, MoveWithTarget.COUP_PLAYER_2]), 1
             return random.choice([MoveWithTarget.COUP_PLAYER_1, MoveWithTarget.COUP_PLAYER_2, MoveWithTarget.COUP_PLAYER_3]), 1
-        elif self.cards.__contains__(Card.ASSASSIN) and self.num_coins >= 3:
+        elif self.cards.__contains__(Card.ASSASSIN) and self.num_coins >= 3 and num_assassination_attempts < 5:
             num_alive_opps = len([p for p in players if p.id != self.id and p.num_cards > 0])
             if num_alive_opps == 1:
                 return random.choice([MoveWithTarget.ASSASSINATE_PLAYER_1, MoveWithTarget.INCOME]), 1

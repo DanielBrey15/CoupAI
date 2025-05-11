@@ -1,6 +1,7 @@
 from Objects.Move import Move
 from Objects.MoveWithTarget import MoveWithTarget
 from Objects.Card import Card
+from Objects.MoveLogEntry import MoveLogEntry
 from Players.Player import Player
 from Players.AIPlayer import AIPlayer
 from Players.AIPlayerML import AIPlayerML
@@ -123,7 +124,7 @@ class GameMethods:
             deck.extend([card, card, card])
         random.shuffle(deck)
         p_cards, deck = deck[:2], deck[2:]
-        players.append(AIPlayerML(card1 = p_cards[0], card2 = p_cards[1], model_file="ModelFiles/Model2.pt", is_training = True, id = 0, name = "p0"))
+        players.append(AIPlayerML(card1 = p_cards[0], card2 = p_cards[1], model_file="ModelFiles/Model3.pt", is_training = True, id = 0, name = "p0"))
         for p in range(1,4):
             p_cards, deck = deck[:2], deck[2:]
             players.append(AIPlayer(card1 = p_cards[0], card2 = p_cards[1], id = p, name = f"p{p}"))
@@ -142,7 +143,13 @@ class GameMethods:
     def getDeck(self) -> list[Card]:
         return self.deck
 
-    def computeDiscountedRewards(num_moves, gamma=0.99):
+    def computeDiscountedRewards(_moves: list[MoveLogEntry], gamma=0.99):
+        discounted_rewards = []
+        for i, _move in enumerate(reversed(_moves)):
+            discounted_rewards.append(_move.reward * gamma**i)
+        return discounted_rewards
+    
+    def computeDiscountedRewardsOLD(num_moves, gamma=0.99): #Remove later -- used in CoupEnvironmentModelTrainer, which is outdated
         discounted_rewards = []
         for r in reversed(range(num_moves)):
             discounted_rewards.append(gamma**r)

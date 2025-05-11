@@ -1,8 +1,10 @@
 import sys
 import random
+import numpy as np
 from typing import Optional
 from progress.bar import Bar
 import matplotlib.pyplot as plt
+import torch
 from gym import spaces
 from pettingzoo import AECEnv
 from Objects.Card import Card
@@ -41,7 +43,8 @@ class CoupEnvironment(AECEnv):
         self.game_log: list[GameLog] = []
         self.player_ids_ranked: list[int] = []
 
-        self.action_spaces = {agent.id: spaces.Discrete(13) for agent in self.agents} # [Income, Foreign Aid, Coup Opp A, Coup Opp B, Coup Opp C, Tax, Steal Opp A, Steal Opp B, Steal Opp C, Assassinate Opp A, Assassinate Opp B, Assassinate Opp C, Exchange]
+        # Actions: Income, Foreign Aid, Coup Opp A, Coup Opp B, Coup Opp C, Tax, Steal Opp A, Steal Opp B, Steal Opp C, Assassinate Opp A, Assassinate Opp B, Assassinate Opp C, Exchange
+        self.action_spaces = {agent.id: spaces.Discrete(13) for agent in self.agents}
         self.observation_spaces = {agent.id: spaces.Discrete(1) for agent in self.agents}
 
     def __str__(self):
@@ -50,7 +53,7 @@ class CoupEnvironment(AECEnv):
             game_status += str(player) + "\n"
         return game_status[:-1] + " ]"
 
-    def reset(self, seed=32) -> None:
+    def reset(self) -> None:
         deck = GameMethods.resetDeckAndPlayers(self.agents)
         self.deck: list[Card] = deck
         self.agent_selection = self.agents[0]
@@ -66,7 +69,7 @@ class CoupEnvironment(AECEnv):
         opp_rank_to_id_dictionary = {i: sorted_opp_ids[i] for i in range(3)}
         move_with_target = MoveWithTarget(action)
         move, target_id = GameMethods.splitMoveAndTarget(move_with_target, opp_rank_to_id_dictionary)
-        target = None if target_id is None else next(a for a in self.agents if a.id == target_id)
+        target = None if target_id is None else next(a for a in self.agents if a.id == target_id) #CHECK
         MoveLogger.logMove(
             curr_player = agent,
             sorted_opps = opps,
@@ -75,6 +78,7 @@ class CoupEnvironment(AECEnv):
             move_log = self.move_log
         )
         GameMethods.resolveMove(GameMethods, agent, move, target, self.isBlocked, self.agents, self.deck, self.setDeck, move_log = env.move_log)
+        MoveLogger.updatePreviousReward(self.move_log, 1)
 
         env.dones = [agent.num_cards == 0 for agent in env.agents]
 
@@ -121,7 +125,16 @@ if __name__ == "__main__":
     curr_wins: int = 0
     win_percentage_over_time: list[float] = []
 
-    random.seed(32)
+    SEED = 32
+
+    # Seed all common libraries
+    random.seed(SEED)
+    np.random.seed(SEED)
+    torch.manual_seed(SEED)
+    torch.cuda.manual_seed(SEED)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
     bar = Bar('Completing games', max = num_games)
 
     for i in range(num_games):
@@ -140,7 +153,7 @@ if __name__ == "__main__":
             if len(new_dead_player_IDs) > 0:
                 env.player_ids_ranked.extend(new_dead_player_IDs)
             if len(env.player_ids_ranked) == 3: # One player left - Game is over
-                playerIdAlive = [p.id for p in env.agents if p.num_cards > 0]
+                playerIdAlive = [p.id for p in env.agents if p.num_cards > 0][0]
                 env.player_ids_ranked.append(playerIdAlive)
                 break
         playerUpdater.updatePlayers(env.move_log, env.player_ids_ranked)
