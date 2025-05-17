@@ -29,7 +29,7 @@ The Coup AI has demonstrated it can learn and, while skipping over some of the r
 ### Strengthen move making model
 
 * Use different inputs to train the model (such as which cards we have and what moves have been made)
-* Use supervised learning model (potentially XGBoost) to learn other features that my reinforcement model could apply to its state, such as the probability of an opponent having a certain card that can block your action.
+* Use supervised learning model to learn other features that my reinforcement model could apply to its state, such as the probability of an opponent having a certain card that can block your action.
 * Give negative rewards for completing actions that are risky (such as those you cannot do based on your cards)
 * Give negative rewards for moves where you are blocked (therefore wasting your turn)
 * Experiment with other policy-based reinforcement algorithms to make moves (such as actor-critic / PPO)
