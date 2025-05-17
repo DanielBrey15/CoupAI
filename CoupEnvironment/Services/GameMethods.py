@@ -132,7 +132,7 @@ class GameMethods:
             deck.extend([card, card, card])
         random.shuffle(deck)
         p_cards, deck = deck[:2], deck[2:]
-        players.append(AIPlayerML(card1 = p_cards[0], card2 = p_cards[1], model_file="ModelFiles/Model4.pt", is_training = True, id = 0, name = "p0"))
+        players.append(AIPlayerML(card1 = p_cards[0], card2 = p_cards[1], model_file="ModelFiles/Model5.pt", is_training = True, id = 0, name = "p0"))
         for p in range(1,4):
             p_cards, deck = deck[:2], deck[2:]
             players.append(AIPlayer(card1 = p_cards[0], card2 = p_cards[1], id = p, name = f"p{p}"))

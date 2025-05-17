@@ -41,7 +41,7 @@ class CoupEnvironment(AECEnv):
         self.dones = {agent.id: False for agent in self.agents}
         self.move_log: list[MoveLogEntry] = []
         self.game_log: list[GameLog] = []
-        self.player_ids_ranked: list[int] = []
+        self.player_ids_ranked: dict = {}
 
         # Actions: Income, Foreign Aid, Coup Opp A, Coup Opp B, Coup Opp C, Tax, Steal Opp A, Steal Opp B, Steal Opp C, Assassinate Opp A, Assassinate Opp B, Assassinate Opp C, Exchange
         self.action_spaces = {agent.id: spaces.Discrete(13) for agent in self.agents}
@@ -60,7 +60,7 @@ class CoupEnvironment(AECEnv):
         self.rewards = {agent.id: 0 for agent in self.agents}
         self.dones = {agent.id: False for agent in self.agents}
         self.move_log: list[MoveLogEntry] = []
-        self.player_ids_ranked: list[int] = []
+        self.player_ids_ranked: dict = {}
 
     def step(self, action, agent, action_prob) -> None:
         opps = [a for a in self.agents if a.id != agent.id]
@@ -151,13 +151,13 @@ if __name__ == "__main__":
             # Check if any players lost their last card and if that caused the end of the game
             new_dead_player_IDs = [p.id for p in env.agents if p.num_cards == 0 and p.id not in env.player_ids_ranked]
             if len(new_dead_player_IDs) > 0:
-                env.player_ids_ranked.extend(new_dead_player_IDs)
+                for _id in new_dead_player_IDs:
+
+                    env.player_ids_ranked[_id] = len(env.player_ids_ranked) # Higher rank is good
             if len(env.player_ids_ranked) == 3: # One player left - Game is over
                 playerIdAlive = [p.id for p in env.agents if p.num_cards > 0][0]
-                env.player_ids_ranked.append(playerIdAlive)
+                env.player_ids_ranked[playerIdAlive] = len(env.player_ids_ranked)
                 break
-            #print(f"{agent.id} move: {action}")
-            #print(env)
         playerUpdater.updatePlayers(env.move_log, env.player_ids_ranked)
 
         if env.agents[0].num_cards > 0:
